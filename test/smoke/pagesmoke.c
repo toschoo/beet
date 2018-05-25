@@ -40,7 +40,7 @@ int writeFibs(FILE *store) {
 			fprintf(stderr, "cannot allocate page: %d\n", err);
 			return -1;
 		}
-		fprintf(stderr, "writing page %d\n", page->pos);
+		fprintf(stderr, "writing page %d\n", page->pageid);
 		fibonacci_r((uint64_t*)page->data, SIZE, f1, f2);
 		memcpy(&f1, page->data+112, 8);
 		memcpy(&f2, page->data+120, 8);
@@ -109,7 +109,7 @@ int testReadFibs(char *path) {
 		free(page); return -1;
 	}
 	for(int i=0; i<10; i++) {
-		fprintf(stderr, "reading page %d\n", page->pos);
+		fprintf(stderr, "reading page %d\n", page->pageid);
 		err = beet_page_load(page, store);
 		if (err != BEET_OK) {
 			fprintf(stderr, "cannot load page: %d\n", err);
@@ -126,7 +126,7 @@ int testReadFibs(char *path) {
 			fclose(store); return -1;
 		}
 		x+=BYTES/8;
-		page->pos++;
+		page->pageid++;
 	}
 	beet_page_destroy(page); free(page);
 	if (fclose(store) != 0) {

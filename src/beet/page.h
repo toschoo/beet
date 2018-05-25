@@ -16,15 +16,17 @@
 #include <stdint.h>
 #include <stdio.h>
 
+typedef uint32_t beet_pageid_t;
+
 /* ------------------------------------------------------------------------
  * Memory representation of a page
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	char       *data; /* binary data associated with this page   */
-	beet_lock_t lock; /* read/write lock to work on this page    */
-	uint32_t     pos; /* file position where this page is stored */
-	uint32_t      sz; /* size of the page in byte                */
+	char           *data; /* binary data associated with this page   */
+	beet_lock_t     lock; /* read/write lock to work on this page    */
+	beet_pageid_t pageid; /* file position where this page is stored */
+	uint32_t          sz; /* size of the page in byte                */
 } beet_page_t;
 
 /* ------------------------------------------------------------------------

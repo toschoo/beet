@@ -38,7 +38,7 @@ beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_WRITE;
 	}
-	(*page)->pos = k/sz;
+	(*page)->pageid = k/sz;
 	return BEET_OK;
 }
 
@@ -51,7 +51,7 @@ beet_err_t beet_page_init(beet_page_t *page, uint32_t sz) {
 	PAGENULL();
 	page->data = NULL;
 	page->sz = sz;
-	page->pos = 0;
+	page->pageid = 0;
 	err = beet_lock_init(&page->lock);
 	if (err != BEET_OK) return err;
 	page->data = calloc(1,sz);
@@ -82,7 +82,7 @@ beet_err_t beet_page_load(beet_page_t *page, FILE *store) {
 	size_t s;
 	PAGENULL();
 	STORENULL();
-	s = (size_t)page->pos * (size_t)page->sz;
+	s = (size_t)page->pageid * (size_t)page->sz;
 	if (fseek(store, s, SEEK_SET) != 0) return BEET_OSERR_SEEK;
 	if (fread(page->data, page->sz, 1, store) != 1) {
 		return BEET_OSERR_READ;
@@ -98,7 +98,7 @@ beet_err_t beet_page_store(beet_page_t *page, FILE *store) {
 	size_t s;
 	PAGENULL();
 	STORENULL();
-	s = (size_t)page->pos * (size_t)page->sz;
+	s = (size_t)page->pageid * (size_t)page->sz;
 	if (fseek(store, s, SEEK_SET) != 0) return BEET_OSERR_SEEK;
 	if (fwrite(page->data, page->sz, 1, store) != 1) {
 		return BEET_OSERR_WRITE;

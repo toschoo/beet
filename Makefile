@@ -30,11 +30,13 @@ RSC = rsc
 OUTLIB = lib
 
 OBJ = $(SRC)/lock.o \
-      $(SRC)/page.o \
       $(SRC)/error.o \
+      $(SRC)/page.o \
+      $(SRC)/rider.o
 
 DEP = $(SRC)/lock.h \
-      $(SRC)/page.h
+      $(SRC)/page.h \
+      $(SRC)/rider.h
 
 default:	lib 
 
