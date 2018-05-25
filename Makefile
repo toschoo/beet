@@ -16,28 +16,35 @@ INSMSG = @printf ". setenv.sh"
 CFLAGS = -g -O3 -Wall -std=c99 -fPIC -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -L./lib
 
-INC = -I./include -I./test -I./src
+INC = -I./include -I./test -I./src -I./
 LIB = lib
 libs=-lm -lpthread -ltsalgo
 
 SRC = src/beet
 HDR = include/beet
 TST = test
+COM = common
+SMK = test/smoke
 TOOLS = tools
 RSC = rsc
 OUTLIB = lib
 
 OBJ = $(SRC)/lock.o \
-      $(SRC)/page.o
+      $(SRC)/page.o \
+      $(SRC)/error.o \
 
 DEP = $(SRC)/lock.h \
       $(SRC)/page.h
 
 default:	lib 
 
-all:	default tools
+all:	default tests tools
 
 tools:	
+
+tests:	smoke
+
+smoke:	$(SMK)/pagesmoke
 
 debug:	CFLAGS += -g
 debug:	default
@@ -83,6 +90,13 @@ $(TST)/tstprogress:	$(TST)/tstprogress.o $(TST)/progress.o
 			                    $(TST)/progress.o  \
 			                    $(TST)/tstprogress.o
 
+$(SMK)/pagesmoke:	lib $(SMK)/pagesmoke.o $(COM)/math.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/pagesmoke   \
+			                    $(SMK)/pagesmoke.o \
+			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
 # Tools
 $(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
 			$(LNKMSG)
@@ -91,9 +105,11 @@ $(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
 # Clean up
 clean:
 	rm -f $(SRC)/*.o
-	rm -f $(TST)/*.o
+	rm -f $(SMK)/*.o
+	rm -f $(COM)/*.o
 	rm -f $(TOOLS)/*.o
 	rm -f $(TOOLS)/readkeys
 	rm -f $(RSC)/*.bin
+	rm -f $(SMK)/pagesmoke
 	rm -f $(OUTLIB)/libbeet.so
 

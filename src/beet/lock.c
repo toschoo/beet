@@ -10,6 +10,7 @@
 
 static inline beet_err_t geterr(int x) {
 	switch(x) {
+	case 0: return 0;
 	case EINVAL: return BEET_OSERR_INVAL;
 	case EBUSY: return BEET_OSERR_BUSY;
 	case ENOMEM: return BEET_OSERR_NOMEM;
@@ -25,7 +26,7 @@ static inline beet_err_t geterr(int x) {
 	if (lock == NULL) return BEET_ERR_INVALID;
 
 #define PTHREADERR(x) \
-	return geterr(x);
+	if (x != 0) return geterr(x);
 
 /* ------------------------------------------------------------------------
  * init read/write lock

@@ -9,6 +9,9 @@
 
 typedef int beet_err_t;
 
+const char *beet_errdesc(beet_err_t err);
+const char *beet_oserrdesc();
+
 #define BEET_OK 0
 
 #define BEET_ERR_NOMEM    2
@@ -22,6 +25,7 @@ typedef int beet_err_t;
 #define BEET_OSERR_DEADLK -7
 #define BEET_OSERR_INTRP  -8
 
+#define BEET_OSERR_ERRNO -100
 #define BEET_OSERR_SEEK  -101
 #define BEET_OSERR_TELL  -102
 #define BEET_OSERR_OPEN  -103
