@@ -16,9 +16,9 @@ INSMSG = @printf ". setenv.sh"
 CFLAGS = -g -O3 -Wall -std=c99 -fPIC -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -L./lib
 
-INC = -I./include -I./test
+INC = -I./include -I./test -I./src
 LIB = lib
-libs=-lm -ltsalgo
+libs=-lm -lpthread -ltsalgo
 
 SRC = src/beet
 HDR = include/beet
@@ -27,9 +27,11 @@ TOOLS = tools
 RSC = rsc
 OUTLIB = lib
 
-OBJ = $(SRC)/page.o
+OBJ = $(SRC)/lock.o \
+      $(SRC)/page.o
 
-DEP = $(SRC)/page.h
+DEP = $(SRC)/lock.h \
+      $(SRC)/page.h
 
 default:	lib 
 
