@@ -18,6 +18,9 @@
 
 typedef uint32_t beet_pageid_t;
 
+#define BEET_PAGE_NULL 0xffffffff
+#define BEET_PAGE_FILE 0x80000000
+
 /* ------------------------------------------------------------------------
  * Memory representation of a page
  * ------------------------------------------------------------------------

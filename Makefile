@@ -26,6 +26,7 @@ TST = test
 COM = common
 SMK = test/smoke
 TOOLS = tools
+LOG = log
 RSC = rsc
 OUTLIB = lib
 
@@ -117,8 +118,10 @@ clean:
 	rm -f $(SMK)/*.o
 	rm -f $(COM)/*.o
 	rm -f $(TOOLS)/*.o
+	rm -f $(LOG)/*.log
 	rm -f $(TOOLS)/readkeys
 	rm -f $(RSC)/*.bin
 	rm -f $(SMK)/pagesmoke
+	rm -f $(SMK)/ridersmoke
 	rm -f $(OUTLIB)/libbeet.so
 

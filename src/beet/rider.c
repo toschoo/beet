@@ -11,15 +11,55 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <errno.h>
 
 /* ------------------------------------------------------------------------
  * Node
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	beet_page_t *page;
-	char used;
+	beet_pageid_t      pageid;
+	beet_page_t         *page;
+	ts_algo_list_node_t *list;
+	int                  used;
 } beet_rider_node_t;
+
+/* ------------------------------------------------------------------------
+ * Create a new node
+ * ------------------------------------------------------------------------
+ */
+static beet_err_t newNode(beet_rider_node_t **node,
+                          beet_rider_t      *rider,
+                          beet_pageid_t     pageid) {
+	beet_err_t err;
+
+	*node = calloc(1,sizeof(beet_rider_node_t));
+	if (*node == NULL) return BEET_ERR_NOMEM;
+
+	if (pageid == BEET_PAGE_NULL) {
+		err = beet_page_alloc(&(*node)->page, rider->file,
+		                                      rider->pagesz);
+		if (err != BEET_OK) return err;
+	} else {
+		(*node)->page = calloc(1, sizeof(beet_page_t));
+		if ((*node)->page == NULL) {
+			free(*node); return BEET_ERR_NOMEM;
+		}
+		err = beet_page_init((*node)->page, rider->pagesz);
+		(*node)->page->pageid = pageid;
+	}
+	(*node)->pageid = (*node)->page->pageid;
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Destroy node
+ * ------------------------------------------------------------------------
+ */
+static void destroyNode(beet_rider_node_t *node) {
+	beet_page_destroy(node->page); free(node->page);
+}
 
 /* ------------------------------------------------------------------------
  * MACRO: lock rider
@@ -64,16 +104,14 @@ typedef struct {
 static ts_algo_cmp_t compare(void *tree,
                              void *one,
                              void *two) {
-	if (CONV(one)->page->pageid <
-	    CONV(two)->page->pageid) return ts_algo_cmp_less;
-	if (CONV(one)->page->pageid >
-	    CONV(two)->page->pageid) return ts_algo_cmp_greater;
+	if (CONV(one)->pageid <
+	    CONV(two)->pageid) return ts_algo_cmp_less;
+	if (CONV(one)->pageid >
+	    CONV(two)->pageid) return ts_algo_cmp_greater;
 	return ts_algo_cmp_equal;
 }
 
-static ts_algo_rc_t update(void *tree,
-                           void *o,
-                           void *n) {
+static ts_algo_rc_t update(void *tree, void *o, void *n) {
 	return TS_ALGO_OK;
 }
 
@@ -201,8 +239,67 @@ void beet_rider_destroy(beet_rider_t *rider) {
 	}
 }
 
-#define READ  0
-#define WRITE 1
+
+/* ------------------------------------------------------------------------
+ * Helper: sleep
+ * ------------------------------------------------------------------------
+ */
+static beet_err_t nap() {
+	struct timespec tp = {0,100000};
+	if (nanosleep(&tp,NULL) != 0) {
+		if (errno == EINTR) return BEET_OK;
+		return BEET_OSERR_SLEEP;
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: make room for more
+ * ------------------------------------------------------------------------
+ */
+static beet_err_t makeRoom(beet_rider_t *rider) {
+	ts_algo_list_node_t *runner;
+	beet_rider_node_t *node;
+
+	for(runner=rider->queue.last;runner!=NULL;runner=runner->prv) {
+		node = runner->cont;
+		if (node->used == 0) {
+			// fprintf(stderr, "removing %u\n", node->pageid);
+			ts_algo_list_remove(&rider->queue, runner);
+			ts_algo_tree_delete(rider->tree, node);
+			free(runner); break;
+		}
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: check if there is room for more
+ * ------------------------------------------------------------------------
+ */
+static inline char hasRoom(beet_rider_t *rider) {
+	return (rider->max == 0 || rider->max > rider->tree->count);
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: wait for more room
+ * ------------------------------------------------------------------------
+ */
+static beet_err_t wait4Room(beet_rider_t *rider) {
+	beet_err_t err;
+	for(;;) {
+		if (hasRoom(rider)) break;
+		UNLOCK();
+		err = nap();
+		LOCK();
+		if (err != BEET_OK) return err;
+	}
+	return BEET_OK;
+}
+
+#define READ   0
+#define WRITE  1
+#define CREATE 2
 
 /* ------------------------------------------------------------------------
  * Get and lock a page for reading or writing
@@ -212,6 +309,77 @@ static beet_err_t getpage(beet_rider_t *rider,
                           beet_pageid_t pageid,
                           char          x,
                           beet_page_t **page) {
+	beet_err_t err = BEET_OK;
+	beet_rider_node_t *node=NULL;
+	beet_rider_node_t pattern;
+
+	LOCK();
+	if (x != CREATE) {
+		pattern.pageid = pageid;
+		node = ts_algo_tree_find(rider->tree, &pattern);
+		if (node != NULL) {
+			ts_algo_list_promote(&rider->queue, node->list);
+			goto found;
+		}
+	}
+	for(;;) {
+		if (hasRoom(rider)) break;
+
+		err = makeRoom(rider);
+		if (err != BEET_OK) {
+			UNLOCK();
+			return err;
+		}
+		err = wait4Room(rider);
+		if (err != BEET_OK) {
+			UNLOCK();
+			return err;
+		}
+	}
+	if (x == CREATE) {
+		err = newNode(&node, rider, BEET_PAGE_NULL);
+		if (err != BEET_OK) {
+			UNLOCK();
+			return err;
+		}
+	} else {
+		err = newNode(&node, rider, pageid);
+		if (err != BEET_OK) {
+			UNLOCK();
+			return err;
+		}
+		err = beet_page_load(node->page, rider->file);
+		if (err != BEET_OK) {
+			destroyNode(node); free(node);
+			UNLOCK();
+			return err;
+		}
+	}
+	if (ts_algo_list_insert(&rider->queue, node) != TS_ALGO_OK) {
+		destroyNode(node); free(node);
+		UNLOCK();
+		return BEET_ERR_NOMEM;
+	}
+	node->list = rider->queue.head;
+	if (ts_algo_tree_insert(rider->tree, node) != TS_ALGO_OK) {
+		ts_algo_list_remove(&rider->queue, node->list);
+		free(node->list);
+		destroyNode(node); free(node);
+		UNLOCK();
+		return BEET_ERR_NOMEM;
+	}
+found:
+	node->used++;
+
+	UNLOCK();
+	if (x == READ) {
+		err = beet_lock_read(&node->page->lock);
+	} else {
+		err = beet_lock_write(&node->page->lock);
+	}
+	if (err != BEET_OK) return err;
+
+	*page = node->page;
 	return BEET_OK;
 }
 
@@ -222,6 +390,29 @@ static beet_err_t getpage(beet_rider_t *rider,
 static beet_err_t releasepage(beet_rider_t *rider,
                               beet_pageid_t pageid,
                               char          x) {
+	beet_err_t err;
+	beet_rider_node_t pattern;
+	beet_rider_node_t *node;
+
+	pattern.pageid = pageid;
+	LOCK();
+	
+	node = ts_algo_tree_find(rider->tree, &pattern);
+	if (node == NULL) {
+		UNLOCK();
+		return BEET_ERR_UNKNKEY;
+	}
+	if (x == READ) {
+		err = beet_unlock_read(&node->page->lock);
+	} else {
+		err = beet_unlock_write(&node->page->lock);
+	}
+	if (err != BEET_OK) {
+		UNLOCK();
+		return err;
+	}
+	node->used--;
+	UNLOCK();
 	return BEET_OK;
 }
 
@@ -255,9 +446,10 @@ beet_err_t beet_rider_getWrite(beet_rider_t *rider,
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_rider_releaseRead(beet_rider_t *rider,
-                                  beet_pageid_t pageid) {
+                                  beet_page_t   *page) {
 	RIDERNULL();
-	return releasepage(rider, pageid, READ);
+	PAGENULL();
+	return releasepage(rider, page->pageid, READ);
 }
 
 /* ------------------------------------------------------------------------
@@ -266,9 +458,10 @@ beet_err_t beet_rider_releaseRead(beet_rider_t *rider,
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_rider_releaseWrite(beet_rider_t *rider,
-                                   beet_pageid_t pageid) {
+                                   beet_page_t   *page) {
 	RIDERNULL();
-	return releasepage(rider, pageid, READ);
+	PAGENULL();
+	return releasepage(rider, page->pageid, WRITE);
 }
 
 /* ------------------------------------------------------------------------
@@ -276,7 +469,11 @@ beet_err_t beet_rider_releaseWrite(beet_rider_t *rider,
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_rider_alloc(beet_rider_t  *rider,
-                            beet_page_t  **page);
+                            beet_page_t  **page) {
+	RIDERNULL();
+	PAGENULL();
+	return getpage(rider,0,CREATE,page);
+}
 
 /* ------------------------------------------------------------------------
  * Release the page identified by 'pageid'

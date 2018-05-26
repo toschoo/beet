@@ -79,7 +79,7 @@ beet_err_t beet_rider_alloc(beet_rider_t  *rider,
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_rider_releaseRead(beet_rider_t *rider,
-                                  beet_pageid_t pageid);
+                                  beet_page_t  *page);
 
 /* ------------------------------------------------------------------------
  * Release the page identified by 'pageid'
@@ -87,14 +87,5 @@ beet_err_t beet_rider_releaseRead(beet_rider_t *rider,
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_rider_releaseWrite(beet_rider_t *rider,
-                                   beet_pageid_t pageid);
-
-/* ------------------------------------------------------------------------
- * Release the page identified by 'pageid'
- * and obtained before for writing 
- * promising it has not been written
- * ------------------------------------------------------------------------
- */
-beet_err_t beet_rider_releaseClean(beet_rider_t *rider,
-                                   beet_pageid_t pageid);
+                                   beet_page_t  *page);
 #endif

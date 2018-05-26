@@ -18,6 +18,7 @@ const char *beet_errdesc(beet_err_t err) {
 	switch(err) {
 	case BEET_ERR_NOMEM: return "out of memory";
 	case BEET_ERR_INVALID:  return "invalid parameter";
+	case BEET_ERR_UNKNKEY:  return "key not found";
 
 	case BEET_OSERR_BUSY: return "resource is busy";
 	case BEET_OSERR_NOMEM: return "out of memory";
@@ -34,6 +35,7 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_OSERR_READ: return "read error (see errno)";
 	case BEET_OSERR_WRITE: return "write error (see errno)";
 	case BEET_OSERR_FLUSH: return "flush error (see errno)";
+	case BEET_OSERR_SLEEP: return "nanosleep error (see errno)";
 
 	default: return "unknown error";
 	}

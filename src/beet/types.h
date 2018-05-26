@@ -16,6 +16,7 @@ const char *beet_oserrdesc();
 
 #define BEET_ERR_NOMEM    2
 #define BEET_ERR_INVALID  3
+#define BEET_ERR_UNKNKEY  4
 
 #define BEET_OSERR_BUSY   -2
 #define BEET_OSERR_NOMEM  -3
@@ -33,6 +34,7 @@ const char *beet_oserrdesc();
 #define BEET_OSERR_READ  -105
 #define BEET_OSERR_WRITE -106
 #define BEET_OSERR_FLUSH -107
+#define BEET_OSERR_SLEEP -108
 
 #define BEET_OSERR_UNKN  -9999
 
