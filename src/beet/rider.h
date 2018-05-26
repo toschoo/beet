@@ -24,13 +24,15 @@
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	beet_lock_t  lock; /* central lock            */
-	ts_algo_lru_t lru; /* page cache              */
-	char        *base; /* base path               */
-	char        *name; /* file name               */
-	FILE        *file; /* the file                */
-	uint32_t   pagesz; /* size of one page        */
-	uint32_t    lrusz; /* # of pages in the cache */
+	beet_lock_t     lock; /* central lock              */
+	ts_algo_tree_t *tree; /* page cache                */
+	ts_algo_list_t queue; /* page cache                */
+	char           *base; /* base path                 */
+	char           *name; /* file name                 */
+	FILE           *file; /* the file                  */
+	uint32_t      pagesz; /* size of one page          */
+	uint32_t          sz; /* # of pages in the cache   */
+	uint32_t         max; /* max of pages in the cache */
 } beet_rider_t;
 
 /* ------------------------------------------------------------------------
@@ -40,7 +42,7 @@ typedef struct {
 beet_err_t beet_rider_init(beet_rider_t    *rider,
                            char *base, char *name,
                            uint32_t        pagesz,
-                           uint32_t        lrusz);
+                           uint32_t          max);
 
 /* ------------------------------------------------------------------------
  * Destroy the rider
@@ -63,6 +65,13 @@ beet_err_t beet_rider_getRead(beet_rider_t  *rider,
 beet_err_t beet_rider_getWrite(beet_rider_t *rider,
                                beet_pageid_t pageid,
                                beet_page_t **page);
+
+/* ------------------------------------------------------------------------
+ * Allocate a new page
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_rider_alloc(beet_rider_t  *rider,
+                            beet_page_t  **page);
 
 /* ------------------------------------------------------------------------
  * Release the page identified by 'pageid'

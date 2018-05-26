@@ -46,7 +46,8 @@ tools:
 
 tests:	smoke
 
-smoke:	$(SMK)/pagesmoke
+smoke:	$(SMK)/pagesmoke \
+	$(SMK)/ridersmoke
 
 debug:	CFLAGS += -g
 debug:	default
@@ -99,6 +100,12 @@ $(SMK)/pagesmoke:	lib $(SMK)/pagesmoke.o $(COM)/math.o
 			                    $(COM)/math.o      \
 			                    $(libs) -lbeet
 
+$(SMK)/ridersmoke:	lib $(SMK)/ridersmoke.o $(COM)/math.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/ridersmoke   \
+			                    $(SMK)/ridersmoke.o \
+			                    $(COM)/math.o       \
+			                    $(libs) -lbeet
 # Tools
 $(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
 			$(LNKMSG)
