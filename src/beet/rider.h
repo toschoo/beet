@@ -13,7 +13,8 @@
 #include <beet/lock.h>
 #include <beet/page.h>
 
-#include <tsalgo/lru.h>
+#include <tsalgo/list.h>
+#include <tsalgo/tree.h>
 
 #include <stdlib.h>
 #include <stdint.h>

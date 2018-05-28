@@ -31,14 +31,16 @@ LOG = log
 RSC = rsc
 OUTLIB = lib
 
-OBJ = $(SRC)/lock.o \
+OBJ = $(SRC)/lock.o  \
       $(SRC)/error.o \
-      $(SRC)/page.o \
-      $(SRC)/rider.o
+      $(SRC)/page.o  \
+      $(SRC)/rider.o \
+      $(SRC)/node.o
 
-DEP = $(SRC)/lock.h \
-      $(SRC)/page.h \
-      $(SRC)/rider.h
+DEP = $(SRC)/lock.h  \
+      $(SRC)/page.h  \
+      $(SRC)/rider.h \
+      $(SRC)/node.h
 
 default:	lib 
 
@@ -49,7 +51,8 @@ tools:
 tests:	smoke stress
 
 smoke:	$(SMK)/pagesmoke \
-	$(SMK)/ridersmoke
+	$(SMK)/ridersmoke \
+	$(SMK)/nodesmoke
 
 stress: $(STRS)/riderstress
 
@@ -111,6 +114,13 @@ $(SMK)/ridersmoke:	lib $(SMK)/ridersmoke.o $(COM)/math.o
 			                    $(COM)/math.o       \
 			                    $(libs) -lbeet
 
+$(SMK)/nodesmoke:	lib $(SMK)/nodesmoke.o $(COM)/math.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/nodesmoke   \
+			                    $(SMK)/nodesmoke.o \
+			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
 			$(LNKMSG)
@@ -137,6 +147,7 @@ clean:
 	rm -f $(RSC)/*.bin
 	rm -f $(SMK)/pagesmoke
 	rm -f $(SMK)/ridersmoke
+	rm -f $(SMK)/nodesmoke
 	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 
