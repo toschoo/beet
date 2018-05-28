@@ -22,11 +22,56 @@ static inline beet_err_t geterr(int x) {
 	}
 }
 
+#define LATCHNULL() \
+	if (latch == NULL) return BEET_ERR_INVALID;
+
 #define LOCKNULL() \
 	if (lock == NULL) return BEET_ERR_INVALID;
 
 #define PTHREADERR(x) \
 	if (x != 0) return geterr(x);
+
+/* ------------------------------------------------------------------------
+ * init latch
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_latch_init(beet_latch_t *latch) {
+	LATCHNULL();
+	int x = pthread_mutex_init(latch, NULL);
+	PTHREADERR(x);
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * destroy latch
+ * ------------------------------------------------------------------------
+ */
+void beet_latch_destroy(beet_latch_t *latch) {
+	if (latch == NULL) return;
+	pthread_mutex_destroy(latch);
+}
+
+/* ------------------------------------------------------------------------
+ * lock latch
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_latch_lock(beet_latch_t *latch) {
+	LATCHNULL();
+	int x = pthread_mutex_lock(latch);
+	PTHREADERR(x);
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * unlock latch
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_latch_unlock(beet_latch_t *latch) {
+	LATCHNULL();
+	int x = pthread_mutex_unlock(latch);
+	PTHREADERR(x);
+	return BEET_OK;
+}
 
 /* ------------------------------------------------------------------------
  * init read/write lock

@@ -25,6 +25,7 @@ HDR = include/beet
 TST = test
 COM = common
 SMK = test/smoke
+STRS = test/stress
 TOOLS = tools
 LOG = log
 RSC = rsc
@@ -45,10 +46,12 @@ all:	default tests tools
 
 tools:	
 
-tests:	smoke
+tests:	smoke stress
 
 smoke:	$(SMK)/pagesmoke \
 	$(SMK)/ridersmoke
+
+stress: $(STRS)/riderstress
 
 debug:	CFLAGS += -g
 debug:	default
@@ -107,6 +110,16 @@ $(SMK)/ridersmoke:	lib $(SMK)/ridersmoke.o $(COM)/math.o
 			                    $(SMK)/ridersmoke.o \
 			                    $(COM)/math.o       \
 			                    $(libs) -lbeet
+
+$(STRS)/riderstress:	lib $(STRS)/riderstress.o \
+			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(STRS)/riderstress   \
+			                    $(STRS)/riderstress.o \
+			                    $(COM)/math.o        \
+			                    $(COM)/bench.o       \
+			                    $(COM)/cmd.o         \
+			                    $(libs) -lbeet
 # Tools
 $(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
 			$(LNKMSG)
@@ -116,6 +129,7 @@ $(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
 clean:
 	rm -f $(SRC)/*.o
 	rm -f $(SMK)/*.o
+	rm -f $(STRS)/*.o
 	rm -f $(COM)/*.o
 	rm -f $(TOOLS)/*.o
 	rm -f $(LOG)/*.log
@@ -123,5 +137,6 @@ clean:
 	rm -f $(RSC)/*.bin
 	rm -f $(SMK)/pagesmoke
 	rm -f $(SMK)/ridersmoke
+	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 

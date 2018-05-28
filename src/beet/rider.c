@@ -66,7 +66,7 @@ static void destroyNode(beet_rider_node_t *node) {
  * ------------------------------------------------------------------------
  */
 #define LOCK() \
-	err = beet_lock_write(&rider->lock); \
+	err = beet_latch_lock(&rider->latch); \
 	if (err != BEET_OK) return err;
 
 /* ------------------------------------------------------------------------
@@ -74,7 +74,7 @@ static void destroyNode(beet_rider_node_t *node) {
  * ------------------------------------------------------------------------
  */
 #define UNLOCK() \
-	err = beet_unlock_write(&rider->lock); \
+	err = beet_latch_unlock(&rider->latch); \
 	if (err != BEET_OK) return err;
 
 /* ------------------------------------------------------------------------
@@ -169,7 +169,7 @@ beet_err_t beet_rider_init(beet_rider_t    *rider,
 	rider->tree = NULL;
 
 	ts_algo_list_init(&rider->queue);
-	err = beet_lock_init(&rider->lock);
+	err = beet_latch_init(&rider->latch);
 	if (err != BEET_OK) return err;
 
 	rider->tree = ts_algo_tree_new(
@@ -177,7 +177,7 @@ beet_err_t beet_rider_init(beet_rider_t    *rider,
 	                      &update,
 	                      &delete, &delete);
 	if (rider->tree == NULL) {
-		beet_lock_destroy(&rider->lock);
+		beet_latch_destroy(&rider->latch);
 		ts_algo_list_destroy(&rider->queue);
 		return BEET_ERR_NOMEM;
 	}
@@ -222,7 +222,7 @@ cleanup:
  */
 void beet_rider_destroy(beet_rider_t *rider) {
 	if (rider == NULL) return;
-	beet_lock_destroy(&rider->lock);
+	beet_latch_destroy(&rider->latch);
 	ts_algo_list_destroy(&rider->queue);
 	if (rider->base != NULL) {
 		free(rider->base); rider->base = NULL;
@@ -238,7 +238,6 @@ void beet_rider_destroy(beet_rider_t *rider) {
 		fclose(rider->file); rider->file = NULL;
 	}
 }
-
 
 /* ------------------------------------------------------------------------
  * Helper: sleep
@@ -476,10 +475,13 @@ beet_err_t beet_rider_alloc(beet_rider_t  *rider,
 }
 
 /* ------------------------------------------------------------------------
- * Release the page identified by 'pageid'
- * and obtained before for writing 
- * promising it has not been written
+ * Store page to disk 
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_rider_releaseClean(beet_rider_t *rider,
-                                   beet_pageid_t pageid);
+beet_err_t beet_rider_store(beet_rider_t *rider,
+                            beet_page_t  *page) {
+	RIDERNULL();
+	PAGENULL();
+	return beet_page_store(page, rider->file);
+}
+

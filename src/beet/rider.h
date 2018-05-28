@@ -24,7 +24,7 @@
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	beet_lock_t     lock; /* central lock              */
+	beet_latch_t   latch; /* in-memory latch           */
 	ts_algo_tree_t *tree; /* page cache                */
 	ts_algo_list_t queue; /* page cache                */
 	char           *base; /* base path                 */
@@ -88,4 +88,11 @@ beet_err_t beet_rider_releaseRead(beet_rider_t *rider,
  */
 beet_err_t beet_rider_releaseWrite(beet_rider_t *rider,
                                    beet_page_t  *page);
+
+/* ------------------------------------------------------------------------
+ * Store page to disk 
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_rider_store(beet_rider_t *rider,
+                            beet_page_t  *page);
 #endif
