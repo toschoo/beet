@@ -25,6 +25,12 @@ then
 	exit 1
 fi
 
+test/stress/riderstress -threads 100 -max 10
+if [ $? -ne 0 ]
+then
+	exit 1
+fi
+
 test/stress/riderstress -threads 10 -max 100000
 if [ $? -ne 0 ]
 then
@@ -38,6 +44,12 @@ then
 fi
 
 test/stress/riderstress -threads 1000 -max 100000
+if [ $? -ne 0 ]
+then
+	exit 1
+fi
+
+test/stress/riderstress -threads 1000 -max 100
 if [ $? -ne 0 ]
 then
 	exit 1
