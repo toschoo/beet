@@ -240,19 +240,6 @@ void beet_rider_destroy(beet_rider_t *rider) {
 }
 
 /* ------------------------------------------------------------------------
- * Helper: sleep
- * ------------------------------------------------------------------------
- */
-static beet_err_t nap() {
-	struct timespec tp = {0,100000};
-	if (nanosleep(&tp,NULL) != 0) {
-		if (errno == EINTR) return BEET_OK;
-		return BEET_OSERR_SLEEP;
-	}
-	return BEET_OK;
-}
-
-/* ------------------------------------------------------------------------
  * Helper: make room for more
  * ------------------------------------------------------------------------
  */
@@ -280,22 +267,6 @@ static inline char hasRoom(beet_rider_t *rider) {
 	return (rider->max == 0 || rider->max > rider->tree->count);
 }
 
-/* ------------------------------------------------------------------------
- * Helper: wait for more room
- * ------------------------------------------------------------------------
- */
-static beet_err_t wait4Room(beet_rider_t *rider) {
-	beet_err_t err;
-	for(;;) {
-		if (hasRoom(rider)) break;
-		UNLOCK();
-		err = nap();
-		LOCK();
-		if (err != BEET_OK) return err;
-	}
-	return BEET_OK;
-}
-
 #define READ   0
 #define WRITE  1
 #define CREATE 2
@@ -321,19 +292,16 @@ static beet_err_t getpage(beet_rider_t *rider,
 			goto found;
 		}
 	}
-	for(;;) {
-		if (hasRoom(rider)) break;
-
+	if (!hasRoom(rider)) {
 		err = makeRoom(rider);
 		if (err != BEET_OK) {
 			UNLOCK();
 			return err;
 		}
-		err = wait4Room(rider);
-		if (err != BEET_OK) {
-			UNLOCK();
-			return err;
-		}
+	}
+	if (!hasRoom(rider)) {
+		UNLOCK();
+		return BEET_ERR_NORSC;
 	}
 	if (x == CREATE) {
 		err = newNode(&node, rider, BEET_PAGE_NULL);

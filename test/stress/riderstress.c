@@ -42,6 +42,15 @@ void errmsg(beet_err_t err, char *msg) {
 }
 
 /* -----------------------------------------------------------------------
+ * Have a nap
+ * -----------------------------------------------------------------------
+ */
+void nap() {
+	struct timespec tp = {0,1000000};
+	nanosleep(&tp,NULL);
+}
+
+/* -----------------------------------------------------------------------
  * What the threads do
  * -----------------------------------------------------------------------
  */
@@ -58,10 +67,14 @@ void randomRider(beet_rider_t *rider, int *errs) {
 		x = rand()%2;
 
 		/* get page */
-		if (x) {
-			err = beet_rider_getRead(rider, pid, &page);
-		} else {
-			err = beet_rider_getWrite(rider, pid, &page);
+		for(;;) {
+			if (x) {
+				err = beet_rider_getRead(rider, pid, &page);
+			} else {
+				err = beet_rider_getWrite(rider, pid, &page);
+			}
+			if (err == BEET_ERR_NORSC) continue;
+			break;
 		}
 		if (err != BEET_OK) {
 			errmsg(err, "cannot get page");
@@ -224,15 +237,6 @@ void *task(void *p) {
 		return NULL;
 	}
 	return NULL;
-}
-
-/* -----------------------------------------------------------------------
- * Have a nap
- * -----------------------------------------------------------------------
- */
-void nap() {
-	struct timespec tp = {0,1000000};
-	nanosleep(&tp,NULL);
 }
 
 /* -----------------------------------------------------------------------
