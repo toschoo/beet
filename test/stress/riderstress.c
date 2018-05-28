@@ -250,7 +250,7 @@ int bench(int threads, int max) {
 	}
 	if (initThreads(&tids, threads) != 0) {
 		params_destroy(&params);
-		fprintf(stderr, "cannot init threads: %d\n", x);
+		fprintf(stderr, "cannot init threads\n");
 		return -1;
 	}
 	if (waitForEvent(threads) < 0) {
