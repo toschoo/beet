@@ -100,7 +100,7 @@ static inline beet_err_t ad3ata(beet_node_t *node,
                                 uint32_t    dsize,
                                 uint32_t     slot,
                                 const void  *data,
-                                beet_ins_t    ins) {
+                                beet_ins_t   *ins) {
 	return BEET_OK;
 }
 
@@ -114,7 +114,7 @@ static inline beet_err_t add2slot(beet_node_t *node,
                                   uint32_t     slot,
                                   const void   *key,
                                   const void  *data,
-                                  beet_ins_t    ins) {
+                                  beet_ins_t   *ins) {
 	char    *src = node->keys+slot*ksize;
 	uint64_t dsz = (node->size-slot)*ksize;
 	uint32_t bsz;
@@ -272,9 +272,12 @@ beet_err_t beet_node_add(beet_node_t     *node,
                          const void       *key,
                          const void      *data,
                          ts_algo_comprsc_t cmp,
-                         beet_ins_t        ins) 
+                         beet_ins_t       *ins,
+                         char           *wrote) 
 {
 	beet_err_t err;
+
+	*wrote = 0;
 
 	if (node->size >= nsize) return BEET_ERR_INVALID;
 
@@ -285,7 +288,10 @@ beet_err_t beet_node_add(beet_node_t     *node,
 
 	/* if we already have that node: add the data */
 	if (beet_node_equal(node,slot,ksize,key,cmp)) {
-		if (node->leaf) return ad3ata(node, dsize, slot, data, ins);
+		if (node->leaf) {
+			*wrote = 1;
+			return ad3ata(node, dsize, slot, data, ins);
+		}
 		return BEET_OK;
 	}
 
@@ -309,6 +315,8 @@ beet_pageid_t beet_node_searchPageid(beet_node_t *node,
 	int idx = binsearch(node->keys, (void*)key, keysz,
 	                        0, node->size, 2, cmp, 1);
 	if (idx >= 0 && idx <= node->size) {
+		if (idx < node->size &&
+		    beet_node_equal(node, idx, keysz, key, cmp)) idx++;
 		return beet_node_getPageid(node,idx);
 	}
 	return BEET_PAGE_NULL;

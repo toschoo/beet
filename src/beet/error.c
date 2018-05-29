@@ -20,6 +20,7 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_ERR_INVALID:  return "invalid parameter";
 	case BEET_ERR_UNKNKEY:  return "key not found";
 	case BEET_ERR_NORSC:  return "resource is busy; try again";
+	case BEET_ERR_PANIC:  return "PANIC! This is a bug!";
 
 	case BEET_OSERR_BUSY: return "resource is busy";
 	case BEET_OSERR_NOMEM: return "out of memory";

@@ -57,10 +57,10 @@ void beet_tree_destroy(beet_tree_t *tree);
  * Insert data into the tree
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_insert(beet_tree_t  *tree,
-                            beet_pageid_t root,
-                            const void    *key,
-                            const void   *data);
+beet_err_t beet_tree_insert(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key,
+                            const void    *data);
 
 /* ------------------------------------------------------------------------
  * Get the node that contains the given key
