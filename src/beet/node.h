@@ -11,6 +11,7 @@
 #include <beet/types.h>
 #include <beet/page.h>
 #include <beet/rider.h>
+#include <beet/ins.h>
 
 #include <tsalgo/types.h>
 
@@ -48,6 +49,21 @@ void beet_node_init(beet_node_t *node,
  * ------------------------------------------------------------------------
  */
 void beet_node_serialise(beet_node_t *node);
+
+/* ------------------------------------------------------------------------
+ * Add (key,data) to node
+ * The new entry must still fit into the node,
+ * otherwise, the function returns with error.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_node_add(beet_node_t     *node,
+                         uint32_t        nsize,
+                         uint32_t        ksize,
+                         uint32_t        dsize,
+                         const void       *key,
+                         const void      *data,
+                         ts_algo_comprsc_t cmp,
+                         beet_ins_t        ins);
 
 /* ------------------------------------------------------------------------
  * Get the key at 'slot'

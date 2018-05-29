@@ -93,6 +93,74 @@ void beet_node_serialise(beet_node_t *node) {
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: add data to node
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t ad3ata(beet_node_t *node,
+                                uint32_t    dsize,
+                                uint32_t     slot,
+                                const void  *data,
+                                beet_ins_t    ins) {
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: add (key,data) to node
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t add2slot(beet_node_t *node,
+                                  uint32_t    ksize,
+                                  uint32_t    dsize,
+                                  uint32_t     slot,
+                                  const void   *key,
+                                  const void  *data,
+                                  beet_ins_t    ins) {
+	char    *src = node->keys+slot*ksize;
+	uint64_t dsz = (node->size-slot)*ksize;
+	uint32_t bsz;
+
+	/* shift keys one to the right 
+ 	 * beginning with slot where the new key enters */
+	if (dsz > 0) memmove(src+ksize,src,dsz);
+
+	/* copy the new key to the slot */
+	memcpy(node->keys+slot*ksize, key, ksize);
+
+	/* if we have no data, we're done */
+	if (data == NULL) return BEET_OK;
+
+	/* datasize depends on node type */
+	bsz=node->leaf?dsize:sizeof(beet_pageid_t);
+
+ 	dsz = (node->size-slot)*bsz;
+	src = node->kids+slot*bsz;
+
+	/* in a nonleaf node the data consist of 
+ 	 * pageids; the left pageid of the old key
+ 	 * is now the left pointer of the new key,
+ 	 * i.e. it stays where it is */
+	if (!node->leaf) src += bsz;
+
+	/* shift data one to the right */
+	if (dsz > 0) memmove(src+bsz,src,dsz);
+
+	/* in the leaf we use the callback */
+	if (node->leaf) {
+		memset(node->kids+slot*dsize,
+		                  0xff,dsize);
+		ad3ata(node, dsize, slot, data, ins);
+	
+	/* in nonleaf nodes we copy the new one to the right
+ 	 * of the new key! */
+	} else {
+		if (bsz > 0) memcpy(node->kids+(slot+1)*bsz, data, bsz);
+	}
+
+	/* done ! */
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Get key at slot
  * ------------------------------------------------------------------------
  */
@@ -191,6 +259,43 @@ static inline int32_t binsearch(char *keys, void *key,
 		return binsearch(keys,key,ksize,i,max,step*2,cmp,-1);
 	}
 	return binsearch(keys,key,ksize,i,max,step*2,cmp,1);
+}
+
+/* ------------------------------------------------------------------------
+ * Add (key,data) to node
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_node_add(beet_node_t     *node,
+                         uint32_t        nsize,
+                         uint32_t        ksize,
+                         uint32_t        dsize,
+                         const void       *key,
+                         const void      *data,
+                         ts_algo_comprsc_t cmp,
+                         beet_ins_t        ins) 
+{
+	beet_err_t err;
+
+	if (node->size >= nsize) return BEET_ERR_INVALID;
+
+	/* find slot */
+	int32_t slot = binsearch(node->keys, (void*)key, ksize,
+	                             0, node->size, 2, cmp, 1);
+	if (slot < 0) return BEET_ERR_INVALID;
+
+	/* if we already have that node: add the data */
+	if (beet_node_equal(node,slot,ksize,key,cmp)) {
+		if (node->leaf) return ad3ata(node, dsize, slot, data, ins);
+		return BEET_OK;
+	}
+
+	/* otherwise: add the key */
+	err = add2slot(node, ksize, dsize, slot, key, data, ins);
+	if (err != BEET_OK) return err;
+
+	node->size++;
+
+	return BEET_OK;
 }
 
 /* ------------------------------------------------------------------------

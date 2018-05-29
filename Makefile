@@ -35,12 +35,15 @@ OBJ = $(SRC)/lock.o  \
       $(SRC)/error.o \
       $(SRC)/page.o  \
       $(SRC)/rider.o \
-      $(SRC)/node.o
+      $(SRC)/node.o  \
+      $(SRC)/tree.o
 
 DEP = $(SRC)/lock.h  \
       $(SRC)/page.h  \
       $(SRC)/rider.h \
-      $(SRC)/node.h
+      $(SRC)/node.h  \
+      $(SRC)/ins.h   \
+      $(SRC)/tree.h
 
 default:	lib 
 
