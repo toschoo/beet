@@ -4,7 +4,6 @@
  * B+Tree Abstraction
  * ========================================================================
  */
-
 #include <beet/tree.h>
 
 #include <stdlib.h>
@@ -106,8 +105,12 @@ static inline beet_err_t newLeaf(beet_tree_t  *tree,
 	beet_err_t err;
 	beet_page_t *page;
 
-	err = beet_rider_alloc(tree->lfs, &page);
-	if (err != BEET_OK) return err;
+	for(;;) {
+		err = beet_rider_alloc(tree->lfs, &page);
+		if (err == BEET_OK) break;
+		if (err == BEET_ERR_NORSC) continue;
+		if (err != BEET_OK) return err;
+	}
 
 	*node = calloc(1, sizeof(beet_node_t));
 	if (*node == NULL) return BEET_ERR_NOMEM;
@@ -130,8 +133,12 @@ static inline beet_err_t newNonLeaf(beet_tree_t  *tree,
 	beet_err_t err;
 	beet_page_t *page;
 
-	err = beet_rider_alloc(tree->nolfs, &page);
-	if (err != BEET_OK) return err;
+	for(;;) {
+		err = beet_rider_alloc(tree->nolfs, &page);
+		if (err == BEET_OK) break;
+		if (err == BEET_ERR_NORSC) continue;
+		if (err != BEET_OK) return err;
+	}
 
 	*node = calloc(1, sizeof(beet_node_t));
 	if (*node == NULL) return BEET_ERR_NOMEM;
@@ -171,14 +178,18 @@ static inline beet_err_t getNode(beet_tree_t  *tree,
 	*node = calloc(1,sizeof(beet_node_t));
 	if (*node == NULL) return BEET_ERR_NOMEM;
 
-	if (mode == READ) {
-		err = beet_rider_getRead(rd, fromLeaf(pge), &page);
-	} else {
-		err = beet_rider_getWrite(rd, fromLeaf(pge), &page);
-	}
-	if (err != BEET_OK) {
-		free(*node); *node = NULL;
-		return err;
+	for(;;) {
+		if (mode == READ) {
+			err = beet_rider_getRead(rd, fromLeaf(pge), &page);
+		} else {
+			err = beet_rider_getWrite(rd, fromLeaf(pge), &page);
+		}
+		if (err == BEET_OK) break;
+		if (err == BEET_ERR_NORSC) continue;
+		if (err != BEET_OK) {
+			free(*node); *node = NULL;
+			return err;
+		}
 	}
 
 	beet_node_init(*node, page, sz, tree->ksize, leaf);
