@@ -287,7 +287,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	if (slot < 0) return BEET_ERR_INVALID;
 
 	/* if we already have that node: add the data */
-	if (beet_node_equal(node,slot,ksize,key,cmp)) {
+	if (slot < node->size && beet_node_equal(node,slot,ksize,key,cmp)) {
 		if (node->leaf) {
 			*wrote = 1;
 			return ad3ata(node, dsize, slot, data, ins);
@@ -299,6 +299,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	err = add2slot(node, ksize, dsize, slot, key, data, ins);
 	if (err != BEET_OK) return err;
 
+	*wrote = 1;
 	node->size++;
 
 	return BEET_OK;

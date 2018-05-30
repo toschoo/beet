@@ -25,33 +25,6 @@
 	if (tree == NULL) return BEET_ERR_INVALID;
 
 /* ------------------------------------------------------------------------
- * Init B+Tree
- * ------------------------------------------------------------------------
- */
-beet_err_t beet_tree_init(beet_tree_t     *tree,
-                          uint32_t        lsize,
-                          uint32_t        nsize,
-                          uint32_t        ksize,
-                          uint32_t        dsize,
-                          beet_rider_t   *nolfs,
-                          beet_rider_t     *lfs,
-                          ts_algo_comprsc_t cmp,
-                          beet_ins_t       *ins) {
-	TREENULL();
-
-	tree->lsize = lsize;
-	tree->nsize = nsize;
-	tree->ksize = ksize;
-	tree->dsize = dsize;
-	tree->nolfs = nolfs;
-	tree->lfs   = lfs;
-	tree->cmp   = cmp;
-	tree->ins   = ins;
-
-	return BEET_OK;
-}
-
-/* ------------------------------------------------------------------------
  * Destroy B+Tree
  * ------------------------------------------------------------------------
  */
@@ -164,15 +137,18 @@ static inline beet_err_t getNode(beet_tree_t  *tree,
 	beet_rider_t  *rd;
 	char         leaf;
 	uint32_t       sz;
+	beet_pageid_t pid;
 
 	if (isLeaf(pge)) {
 		rd = tree->lfs;
 		leaf = 1;
 		sz = tree->lsize;
+		pid = fromLeaf(pge);
 	} else {
 		rd = tree->nolfs;
 		leaf = 0;
 		sz = tree->nsize;
+		pid = pge;
 	}
 
 	*node = calloc(1,sizeof(beet_node_t));
@@ -180,9 +156,9 @@ static inline beet_err_t getNode(beet_tree_t  *tree,
 
 	for(;;) {
 		if (mode == READ) {
-			err = beet_rider_getRead(rd, fromLeaf(pge), &page);
+			err = beet_rider_getRead(rd, pid, &page);
 		} else {
-			err = beet_rider_getWrite(rd, fromLeaf(pge), &page);
+			err = beet_rider_getWrite(rd, pid, &page);
 		}
 		if (err == BEET_OK) break;
 		if (err == BEET_ERR_NORSC) continue;
@@ -232,6 +208,50 @@ static inline beet_err_t releaseNode(beet_tree_t *tree,
 		err = beet_rider_releaseWrite(rd, node->page);
 	}
 	if (err != BEET_OK) return err;
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Init B+Tree
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_init(beet_tree_t     *tree,
+                          uint32_t        lsize,
+                          uint32_t        nsize,
+                          uint32_t        ksize,
+                          uint32_t        dsize,
+                          beet_rider_t   *nolfs,
+                          beet_rider_t     *lfs,
+                          ts_algo_comprsc_t cmp,
+                          beet_ins_t       *ins) {
+	beet_node_t *node;
+	beet_err_t    err;
+
+	TREENULL();
+
+	tree->lsize = lsize;
+	tree->nsize = nsize;
+	tree->ksize = ksize;
+	tree->dsize = dsize;
+	tree->nolfs = nolfs;
+	tree->lfs   = lfs;
+	tree->cmp   = cmp;
+	tree->ins   = ins;
+
+	/* create first leaf node*/
+	err = newLeaf(tree, &node);
+	if (err != BEET_OK) return err;
+
+	err = storeNode(tree, node);
+	if (err != BEET_OK) {
+		free(node); return err;
+	}
+
+	err = releaseNode(tree, node);
+	if (err != BEET_OK) {
+		free(node); return err;
+	}
+	free(node);
 	return BEET_OK;
 }
 
@@ -367,6 +387,7 @@ static inline beet_err_t split(beet_tree_t *tree,
 	}
 
 	if (bsz > 0) memcpy((*trg)->kids, srk, sz);
+	src->size /= 2;
 
 	return BEET_OK;
 }
@@ -412,7 +433,9 @@ static beet_err_t insert(beet_tree_t   *tree,
 	}
 
 	/* we need to split */
-	if (node->size == tree->nsize) {
+	if ((node->leaf && node->size == tree->lsize) ||
+	   (!node->leaf && node->size == tree->nsize)) {
+
 		err = split(tree, node, &node2);
 		if (err != BEET_OK) return err;
 
@@ -474,10 +497,16 @@ static beet_err_t add2mom(beet_tree_t   *tree,
 		memcpy(mom->kids+sizeof(beet_pageid_t), &p2,
 		                 sizeof(beet_pageid_t));
 
+		/*
+		fprintf(stderr, "root goes from %u to %u\n", *root, mom->self);
+		*/
+
 		*root = mom->self;
 
 		err = storeNode(tree, mom);
 		if (err != BEET_OK) return err;
+
+		/* update and unlock root */
 
 		err = releaseNode(tree, mom); free(mom);
 		return err;
@@ -500,7 +529,7 @@ static inline int isBarrier(beet_tree_t *tree,
 }
 
 /* ------------------------------------------------------------------------
- * Helper: node is a barrier (it has enough room for at least 1 more node)
+ * Helper: unlock all nodes in opposite order of acquistion
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t unlockAll(beet_tree_t *tree, 
@@ -518,6 +547,7 @@ static inline beet_err_t unlockAll(beet_tree_t *tree,
 		ts_algo_list_remove(nodes, runner);
 		free(runner); runner = tmp;
 	}
+	/* unlock root */
 	return BEET_OK;
 }
 
@@ -560,10 +590,10 @@ static beet_err_t findNode(beet_tree_t     *tree,
 			return err;
 		}
 	} else if (mode == READ) {
-		err = releaseNode(tree, src);
+		err = releaseNode(tree, src); free(src);
 		if (err != BEET_OK) {
 			releaseNode(tree, *trg);
-			free(src); free(*trg);
+			free(*trg);
 			return err;
 		}
 	}
@@ -588,6 +618,8 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 	if (key  == NULL) return BEET_ERR_INVALID;
 
 	ts_algo_list_init(&nodes);
+
+	/* lock root */
 
 	err = getNode(tree, *root, WRITE, &node);
 	if (err != BEET_OK) return err;
@@ -614,7 +646,18 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 beet_err_t beet_tree_get(beet_tree_t  *tree,
                          beet_pageid_t root,
                          const void    *key,
-                         beet_node_t **node);
+                         beet_node_t **node) {
+	beet_err_t err;
+	beet_node_t *tmp;
+
+	err = getNode(tree, root, READ, &tmp);
+	if (err != BEET_OK) return err;
+
+	err = findNode(tree, tmp, node, READ, key, NULL);
+	if (err != BEET_OK) return err;
+
+	return BEET_OK;
+}
 
 /* ------------------------------------------------------------------------
  * Get the leftmost node
@@ -631,6 +674,15 @@ beet_err_t beet_tree_left(beet_tree_t  *tree,
 beet_err_t beet_tree_right(beet_tree_t  *tree,
                            beet_pageid_t root,
                            beet_node_t **node);
+
+/* ------------------------------------------------------------------------
+ * Release a node obtained by get, left or right
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_release(beet_tree_t *tree,
+                             beet_node_t *node) {
+	return releaseNode(tree, node);
+}
 
 /* ------------------------------------------------------------------------
  * Apply function on all (key,data) pairs in range (a.k.a. 'map')

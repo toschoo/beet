@@ -61,10 +61,20 @@ int createFile(char *path, char *name) {
 	return 0;
 }
 
+#define DEREF(x) \
+	(*(int*)x)
+
+ts_algo_cmp_t compare(void *ignore, void *one, void *two) {
+	if (DEREF(one) < DEREF(two)) return ts_algo_cmp_less;
+	if (DEREF(one) > DEREF(two)) return ts_algo_cmp_greater;
+	return ts_algo_cmp_equal;
+}
+
 int testWriteNums(beet_rider_t *rider) {
 	beet_page_t *page;
 	beet_node_t  node;
 	beet_err_t    err;
+	char        wrote;
 
 	err = beet_rider_alloc(rider, &page);
 	if (err != BEET_OK) {
@@ -72,10 +82,20 @@ int testWriteNums(beet_rider_t *rider) {
 		return -1;
 	}
 	beet_node_init(&node, page, NODESZ, KEYSZ, 1);
+	node.next = BEET_PAGE_NULL;
+	node.prev = BEET_PAGE_NULL;
 
-	for(int z=0;z<NODESZ;z++) {
-		memcpy(node.keys+z*KEYSZ, &z, KEYSZ);
-		node.size += 1;
+	for(int z=NODESZ-1;z>=0;z--) {
+		err = beet_node_add(&node, NODESZ, KEYSZ, 0, 
+		          &z, NULL, &compare, NULL, &wrote);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot write to node");
+			return -1;
+		}
+		if (!wrote) {
+			fprintf(stderr, "didn't write???\n");
+			return -1;
+		}
 	}
 
 	beet_node_serialise(&node);
@@ -93,15 +113,6 @@ int testWriteNums(beet_rider_t *rider) {
 	return 0;
 }
 
-#define DEREF(x) \
-	(*(int*)x)
-
-ts_algo_cmp_t compare(void *ignore, void *one, void *two) {
-	if (DEREF(one) < DEREF(two)) return ts_algo_cmp_less;
-	if (DEREF(one) > DEREF(two)) return ts_algo_cmp_greater;
-	return ts_algo_cmp_equal;
-}
-
 int testReadRandom(beet_rider_t *rider) {
 	beet_page_t *page;
 	beet_node_t  node;
@@ -117,7 +128,7 @@ int testReadRandom(beet_rider_t *rider) {
 
 	beet_node_init(&node, page, NODESZ, KEYSZ, 1);
 
-	for(int i=0;i<25;i++) {
+	for(int i=0;i<50;i++) {
 		k=rand()%NODESZ;
 		slot = beet_node_search(&node, KEYSZ, &k, compare);
 		if (slot < 0) {

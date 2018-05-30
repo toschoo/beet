@@ -88,6 +88,13 @@ beet_err_t beet_tree_right(beet_tree_t  *tree,
                            beet_node_t **node);
 
 /* ------------------------------------------------------------------------
+ * Release a node obtained by get, left or right
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_release(beet_tree_t *tree,
+                             beet_node_t *node);
+
+/* ------------------------------------------------------------------------
  * Apply function on all (key,data) pairs in range (a.k.a. 'map')
  * ------------------------------------------------------------------------
  */

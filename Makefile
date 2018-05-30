@@ -53,9 +53,10 @@ tools:
 
 tests:	smoke stress
 
-smoke:	$(SMK)/pagesmoke \
+smoke:	$(SMK)/pagesmoke  \
 	$(SMK)/ridersmoke \
-	$(SMK)/nodesmoke
+	$(SMK)/nodesmoke  \
+	$(SMK)/treesmoke
 
 stress: $(STRS)/riderstress
 
@@ -124,6 +125,13 @@ $(SMK)/nodesmoke:	lib $(SMK)/nodesmoke.o $(COM)/math.o
 			                    $(COM)/math.o      \
 			                    $(libs) -lbeet
 
+$(SMK)/treesmoke:	lib $(SMK)/treesmoke.o $(COM)/math.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/treesmoke   \
+			                    $(SMK)/treesmoke.o \
+			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
 			$(LNKMSG)
@@ -148,9 +156,12 @@ clean:
 	rm -f $(LOG)/*.log
 	rm -f $(TOOLS)/readkeys
 	rm -f $(RSC)/*.bin
+	rm -f $(RSC)/*.leaf
+	rm -f $(RSC)/*.noleaf
 	rm -f $(SMK)/pagesmoke
 	rm -f $(SMK)/ridersmoke
 	rm -f $(SMK)/nodesmoke
+	rm -f $(SMK)/treesmoke
 	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 
