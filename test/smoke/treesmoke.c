@@ -16,6 +16,7 @@
 #define BIG   160
 #define BYTES 128
 #define KEYSZ   4
+#define DATASZ  4
 
 void errmsg(beet_err_t err, char *s) {
 	fprintf(stderr, "%s: %s (%d)\n",
@@ -71,9 +72,13 @@ ts_algo_cmp_t compare(void *ignore, void *one, void *two) {
 	return ts_algo_cmp_equal;
 }
 
-int initTree(beet_tree_t *tree, char *base, char *name1, char *name2) {
+int initTree(beet_tree_t *tree, char *base,
+                                char *name1,
+                                char *name2,
+                                FILE *roof) {
 	beet_err_t err;
 	beet_rider_t *nlfs, *lfs;
+	beet_ins_t *ins;
 
 	if (createFile(base, name1) != 0) return -1;
 	if (createFile(base, name2) != 0) return -1;
@@ -88,12 +93,18 @@ int initTree(beet_tree_t *tree, char *base, char *name1, char *name2) {
 		fprintf(stderr, "out-of-mem\n");
 		return -1;
 	}
+	ins = calloc(1, sizeof(beet_ins_t));
+	if (ins == NULL) {
+		fprintf(stderr, "out-of-mem\n");
+		return -1;
+	}
+	beet_ins_setPlain(ins);
 	
 	if (initRider(nlfs, base, name1) != 0) return -1;
 	if (initRider(lfs, base, name2) != 0) return -1;
 
-	err = beet_tree_init(tree, NODESZ, NODESZ, sizeof(int), 0,
-	                               nlfs, lfs, &compare, NULL);
+	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, DATASZ,
+	                         nlfs, lfs, roof, &compare, ins);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot initialise rider");
 		return -1;
@@ -105,7 +116,7 @@ int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	beet_err_t    err;
 
 	for(int z=hi-1;z>=lo;z--) {
-		err = beet_tree_insert(tree, root, &z, NULL);
+		err = beet_tree_insert(tree, root, &z, &z);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot insert into tree");
 			return -1;
@@ -141,6 +152,13 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
 			return -1;
 		}
 		// fprintf(stderr, "found: %d in %d\n", k, slot);
+		if (memcmp(node->keys+slot*KEYSZ,
+		           node->kids+slot*DATASZ, KEYSZ) != 0) {
+			fprintf(stderr, "key and data differ: %d - %d\n",
+				(*(int*)(node->keys+slot*KEYSZ)),
+				(*(int*)(node->kids+slot*KEYSZ)));
+			return -1;
+		}
 
 		err = beet_tree_release(tree, node);
 		if (err != BEET_OK) {
@@ -157,6 +175,8 @@ int main() {
 	char *path = "rsc";
 	char *nlfs = "test10.noleaf";
 	char *lfs = "test10.leaf";
+	char *p;
+	FILE *roof;
 	int rc = EXIT_SUCCESS;
 	beet_tree_t tree;
 	beet_pageid_t root = BEET_PAGE_LEAF;
@@ -164,7 +184,24 @@ int main() {
 
 	srand(time(NULL));
 
-	if (initTree(&tree, path, nlfs, lfs) != 0) {
+	if (createFile(path, "roof") != 0) {
+		fprintf(stderr, "cannot create roof\n");
+		return EXIT_FAILURE;
+	}
+	p = malloc(strlen(path) + 6);
+	if (p == NULL) {
+		fprintf(stderr, "out-of-mem\n");
+		return EXIT_FAILURE;
+	}
+	sprintf(p, "%s/roof", path);
+
+	roof = fopen(p, "rb+"); free(p);
+	if (roof == NULL) {
+		fprintf(stderr, "cannot open roof\n");
+		return EXIT_FAILURE;
+	}
+
+	if (initTree(&tree, path, nlfs, lfs, roof) != 0) {
 		fprintf(stderr, "cannot init tree\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -237,6 +274,7 @@ int main() {
 
 cleanup:
 	if (haveTree) beet_tree_destroy(&tree);
+	fclose(roof);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");
 	} else {

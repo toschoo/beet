@@ -25,11 +25,43 @@
 	if (tree == NULL) return BEET_ERR_INVALID;
 
 /* ------------------------------------------------------------------------
+ * Macro: lock roof
+ * ------------------------------------------------------------------------
+ */
+#define LOCK() \
+	err = beet_latch_lock(&tree->rlock); \
+	if (err != BEET_OK) return err; \
+	tree->locked = 1;
+
+/* ------------------------------------------------------------------------
+ * Macro: unlock roof
+ * ------------------------------------------------------------------------
+ */
+#define UNLOCK() \
+	if (tree->locked) { \
+		err = beet_latch_unlock(&tree->rlock); \
+		if (err != BEET_OK) return err; \
+		tree->locked = 0; \
+	}
+
+/* ------------------------------------------------------------------------
+ * Macro: store root
+ * ------------------------------------------------------------------------
+ */
+#define STOREROOT(root) \
+	if (fseek(tree->roof, 0, SEEK_SET) !=0) return BEET_OSERR_SEEK; \
+	if (fwrite(root, sizeof(beet_pageid_t), 1, tree->roof) != 1) { \
+		return BEET_OSERR_SEEK; \
+	} \
+	if (fflush(tree->roof) != 0) return BEET_OSERR_FLUSH;
+
+/* ------------------------------------------------------------------------
  * Destroy B+Tree
  * ------------------------------------------------------------------------
  */
 void beet_tree_destroy(beet_tree_t *tree) {
 	if (tree == NULL) return;
+	beet_latch_destroy(&tree->rlock);
 	if (tree->ins != NULL) {
 		tree->ins->cleaner(tree->ins);
 		free(tree->ins); tree->ins = NULL;
@@ -222,6 +254,7 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
                           uint32_t        dsize,
                           beet_rider_t   *nolfs,
                           beet_rider_t     *lfs,
+                          FILE            *roof,
                           ts_algo_comprsc_t cmp,
                           beet_ins_t       *ins) {
 	beet_node_t *node;
@@ -229,14 +262,20 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
 
 	TREENULL();
 
-	tree->lsize = lsize;
-	tree->nsize = nsize;
-	tree->ksize = ksize;
-	tree->dsize = dsize;
-	tree->nolfs = nolfs;
-	tree->lfs   = lfs;
-	tree->cmp   = cmp;
-	tree->ins   = ins;
+	tree->lsize  = lsize;
+	tree->nsize  = nsize;
+	tree->ksize  = ksize;
+	tree->dsize  = dsize;
+	tree->nolfs  = nolfs;
+	tree->lfs    = lfs;
+	tree->roof   = roof;
+	tree->cmp    = cmp;
+	tree->ins    = ins;
+	tree->locked = 0;
+
+	/* init root file latch */
+	err = beet_latch_init(&tree->rlock);
+	if (err != BEET_OK) return err;
 
 	/* create first leaf node*/
 	err = newLeaf(tree, &node);
@@ -246,7 +285,6 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
 	if (err != BEET_OK) {
 		free(node); return err;
 	}
-
 	err = releaseNode(tree, node);
 	if (err != BEET_OK) {
 		free(node); return err;
@@ -503,10 +541,11 @@ static beet_err_t add2mom(beet_tree_t   *tree,
 
 		*root = mom->self;
 
+		STOREROOT(root);
+		UNLOCK();
+
 		err = storeNode(tree, mom);
 		if (err != BEET_OK) return err;
-
-		/* update and unlock root */
 
 		err = releaseNode(tree, mom); free(mom);
 		return err;
@@ -547,7 +586,7 @@ static inline beet_err_t unlockAll(beet_tree_t *tree,
 		ts_algo_list_remove(nodes, runner);
 		free(runner); runner = tmp;
 	}
-	/* unlock root */
+	UNLOCK();
 	return BEET_OK;
 }
 
@@ -619,13 +658,19 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 
 	ts_algo_list_init(&nodes);
 
-	/* lock root */
+	LOCK();
 
 	err = getNode(tree, *root, WRITE, &node);
-	if (err != BEET_OK) return err;
+	if (err != BEET_OK) {
+		UNLOCK();
+		return err;
+	}
 
 	err = findNode(tree, node, &leaf, WRITE, key, &nodes);	
-	if (err != BEET_OK) return err;
+	if (err != BEET_OK) {
+		UNLOCK();
+		return err;
+	}
 
 	err = insert(tree, root, leaf, key, data, nodes.head);
 	if (err != BEET_OK) return err;

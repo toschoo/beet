@@ -101,7 +101,8 @@ static inline beet_err_t ad3ata(beet_node_t *node,
                                 uint32_t     slot,
                                 const void  *data,
                                 beet_ins_t   *ins) {
-	return BEET_OK;
+	if (ins == NULL) return BEET_OK;
+	return ins->inserter(ins->rsc, dsize, node->kids+slot*dsize, data);
 }
 
 /* ------------------------------------------------------------------------

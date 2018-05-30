@@ -3,6 +3,11 @@
  * ========================================================================
  * Data insert abstraction
  * ========================================================================
+ * Inserting data into a B+tree depends on the structure of the tree.
+ * We may:
+ * - insert nothing
+ * - insert plain data to the node ('primary key')
+ * - insert data to an embedded tree
  * ========================================================================
  */
 #ifndef beet_ins_decl
@@ -18,11 +23,12 @@
  * Generic insert callback
  * -----------------------
  * Parameters: 1) resource ("closure")
- *             2) position in the tree
- *             3) data to add
+ *             2) data size
+ *             3) position in the tree
+ *             4) data to add
  * -------------------------------------------------------------------------
  */
-typedef beet_err_t (*beet_insert_t)(void*, void*, const void*); 
+typedef beet_err_t (*beet_insert_t)(void*, uint32_t sz, void*, const void*); 
 
 /* -------------------------------------------------------------------------
  * Generic insert cleanup callback
@@ -48,5 +54,28 @@ typedef struct {
 	beet_insert_t     inserter;
 	beet_ins_cleanup_t cleaner;
 } beet_ins_t;
+
+/* -------------------------------------------------------------------------
+ * Plain inserter
+ * -------------------------------------------------------------------------
+ */
+beet_err_t beet_ins_plain(void *ignore, uint32_t sz, void* trg,
+                                             const void *data);
+void beet_ins_plainclean(void *ignore);
+beet_err_t beet_ins_setPlain(beet_ins_t *ins);
+
+/* -------------------------------------------------------------------------
+ * Embedded inserter
+ * -------------------------------------------------------------------------
+ */
+typedef struct {
+	void *key;
+	void *data;
+} beet_ins_pair_t;
+
+beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void* root,
+                                               const void *data);
+void beet_ins_embeddedclean(void *ins);
+beet_err_t beet_ins_setEmbedded(beet_ins_t *ins, void *subtree);
 
 #endif

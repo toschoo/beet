@@ -35,6 +35,7 @@ OBJ = $(SRC)/lock.o  \
       $(SRC)/error.o \
       $(SRC)/page.o  \
       $(SRC)/rider.o \
+      $(SRC)/ins.o   \
       $(SRC)/node.o  \
       $(SRC)/tree.o
 
@@ -158,6 +159,8 @@ clean:
 	rm -f $(RSC)/*.bin
 	rm -f $(RSC)/*.leaf
 	rm -f $(RSC)/*.noleaf
+	rm -f $(RSC)/roof
+	rm -f $(RSC)/config
 	rm -f $(SMK)/pagesmoke
 	rm -f $(SMK)/ridersmoke
 	rm -f $(SMK)/nodesmoke

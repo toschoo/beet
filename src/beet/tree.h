@@ -9,6 +9,7 @@
 #define beet_tree_decl
 
 #include <beet/types.h>
+#include <beet/lock.h>
 #include <beet/rider.h>
 #include <beet/node.h>
 #include <beet/ins.h>
@@ -17,6 +18,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* ------------------------------------------------------------------------
  * B+Tree
@@ -31,6 +33,9 @@ typedef struct beet_tree_st {
 	beet_rider_t     *lfs; /* rider for leafs         */
 	ts_algo_comprsc_t cmp; /* key compare callback    */
 	beet_ins_t       *ins; /* data insertion callback */
+	FILE            *roof; /* root file               */
+	beet_latch_t    rlock; /* root file protection    */
+	char           locked; /* is currently locked     */
 } beet_tree_t;
 
 /* ------------------------------------------------------------------------
@@ -44,6 +49,7 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
                           uint32_t        dsize,
                           beet_rider_t   *nolfs,
                           beet_rider_t     *lfs,
+                          FILE            *roof,
                           ts_algo_comprsc_t cmp,
                           beet_ins_t       *ins);
 
