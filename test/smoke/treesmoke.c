@@ -13,7 +13,6 @@
 #include <stdint.h>
 
 #define NODESZ 14
-#define BIG   160
 #define BYTES 128
 #define KEYSZ   4
 #define DATASZ  4

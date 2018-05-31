@@ -130,7 +130,6 @@ static inline beet_err_t newLeaf(beet_tree_t  *tree,
 	(*node)->prev = BEET_PAGE_NULL;
 	(*node)->mode = WRITE;
 
-	/* insert-specific initialiser */
 	if (tree->ins != NULL) {
 		tree->ins->ninit(tree->ins, tree->lsize, (*node)->kids);
 	}
@@ -328,14 +327,14 @@ static inline beet_err_t setPrev(beet_tree_t *tree,
 	beet_node_t *node2;
 	beet_err_t     err;
 
-	/* if not next: ok */
+	/* if there is no next, we're done */
 	if (node->next == BEET_PAGE_NULL) return BEET_OK;
 
 	/* load next */
 	 err = getNode(tree, toLeaf(node->next), WRITE, &node2);
 	if (err != BEET_OK) return err;
 	
-	/* set prev of node.next to node */
+	/* set previous of node.next to node */
 	node2->prev = node->self;
 
 	/* store and release */
@@ -361,7 +360,7 @@ static inline beet_err_t split(beet_tree_t *tree,
                                beet_node_t **trg) {
 	beet_err_t err;
 	uint32_t off, sz;
-	uint32_t bsz,nsz;
+	uint32_t dsz,nsz;
 	char *srk;
 
 	if (src->leaf) {
@@ -371,20 +370,18 @@ static inline beet_err_t split(beet_tree_t *tree,
 	}
 	if (err != BEET_OK) return err;
 
-	/* half of the keys stay in the old node,
- 	 * the other half goes to the new node.
- 	 * If size is odd (e.g. 7):
- 	 * -> 7/2 = 3 (old node)
- 	 * -> 7-3 = 4 (new node) */
+	/* For size s, s/2 of the keys stay and
+	 * s - s/2 move. If size s is odd, 
+	 * s/2 = (s-1)/2. */
 	off = src->size/2 * tree->ksize;
 	sz  = src->size * tree->ksize - off;
 	srk = src->keys + off;
 	(*trg)->size = src->size - src->size/2;
 
-	/* in the case of a nonleaf node,
- 	 * the first key in trg has no function
- 	 * anymore: it is not a splitter!
- 	 * so, we step over it */
+	/* in the case of a nonleaf,
+ 	 * the first key in trg is ignored.
+	 * It will be used as splitter
+	 * one generation up. */
 	if (!src->leaf) {
 		sz -= tree->ksize;
 		srk += tree->ksize;
@@ -394,9 +391,7 @@ static inline beet_err_t split(beet_tree_t *tree,
 	memcpy((*trg)->keys, srk, sz);
 
 	/* same logic as above, but, in a leaf,
- 	 * we need to consider the next and prev pointers
- 	 * and, in a nonleaf, we need to consider
- 	 * the last pointer (which stays in the old node!) */
+ 	 * we need to consider next and prev */
 	if (src->leaf) {
 
 		/* a -> node ->         b =>
@@ -414,43 +409,22 @@ static inline beet_err_t split(beet_tree_t *tree,
 			return err;
 		}
 
-		bsz = tree->dsize;
-		if (bsz > 0) {
-			off = src->size/2 * bsz;
-			sz  = src->size * bsz - off;
+		dsz = tree->dsize;
+		if (dsz > 0) {
+			off = src->size/2 * dsz;
+			sz  = src->size * dsz - off;
 			srk = src->kids + off;
 		}
 	} else {
-		/* the following diagram shows
-		 * what is copied and what stays;
-		 * fields shaded '\\' stay,
-		 * those shaded '//' move.
-		 *
-		 * The field left blank is ignored
-		 * and used as splitter for the nodes.
-		 *
-		 * 1) size is even
-		 *    +-----------+
-		 *    |\\|\\|  |//|
-		 *    +-----------+--+
-		 *    |\\|\\|\\|//|//|
-		 *    +-----------+--+
-		 *
-		 * 2) size is odd    
-		 *    +-----------+--+
-		 *    |\\|\\|  |//|//|
-		 *    +-----------+--+--+
-		 *    |\\|\\|\\|//|//|//|
-		 *    +-----------+--+--+
-		 */
-		bsz = sizeof(beet_pageid_t);
+		/* note that we leave out one of the kids */
+		dsz = sizeof(beet_pageid_t);
 		nsz = src->size+1;   
-		sz  = nsz/2 * bsz;    
-		off = nsz * bsz - sz; 
+		sz  = nsz/2 * dsz;    
+		off = nsz * dsz - sz; 
 		srk = src->kids + off;
 	}
 
-	if (bsz > 0) memcpy((*trg)->kids, srk, sz);
+	if (dsz > 0) memcpy((*trg)->kids, srk, sz);
 	src->size /= 2;
 
 	return BEET_OK;
@@ -503,7 +477,7 @@ static beet_err_t insert(beet_tree_t   *tree,
 		err = split(tree, node, &node2);
 		if (err != BEET_OK) return err;
 
-		/* get splitter (see diagram above) */
+		/* get splitter */
 		s = node->leaf ? node2->keys :
 		                 node->keys  +
 		                 node->size * tree->ksize;
@@ -632,6 +606,8 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	if (src->leaf) {
 		*trg = src; return BEET_OK;
 	}
+
+	/* remember node, so we can release it later */
 	if (mode == WRITE) {
 		if (ts_algo_list_insert(nodes, src) != TS_ALGO_OK) {
 			releaseNode(tree, src); free(src);
@@ -648,12 +624,18 @@ static beet_err_t findNode(beet_tree_t     *tree,
 		releaseNode(tree, src); free(src);
 		return err;
 	}
+
+	/* in write mode, if we have reached a barrier,
+	 * we can release all nodes we locked so far */
 	if (mode == WRITE && isBarrier(tree, *trg)) {
 		err = unlockAll(tree, nodes);
 		if (err != BEET_OK) {
 			releaseNode(tree, src); free(src);
 			return err;
 		}
+
+	/* in read mode, we release the previous node,
+	 * as soon as we have locked the next one */
 	} else if (mode == READ) {
 		err = releaseNode(tree, src); free(src);
 		if (err != BEET_OK) {
@@ -679,6 +661,7 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 	beet_node_t *node, *leaf;
 
 	TREENULL();
+
 	if (root == NULL) return BEET_ERR_INVALID;
 	if (key  == NULL) return BEET_ERR_INVALID;
 

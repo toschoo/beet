@@ -3,16 +3,8 @@
  * ========================================================================
  * B+Node Abstraction
  * ========================================================================
- */
-#include <beet/node.h>
-#include <string.h>
-
-/* ------------------------------------------------------------------------
- * Init Node
- * ---------
  *
- * This function defines the mapping page -> node.
- * The format is:
+ * The binary format of a node, which is store in a page, is
  *
  * 1) Internal Node
  *    +------------------------------------------+
@@ -25,15 +17,17 @@
  *    - keysize: size of 1 key
  *    - nodesz : max number of keys per node)
  *
- *    The releation between keys and kids is illustrated by
+ *    The following diagram illustrates the 
+ *    releation between keys and their kids:
  *
- *      key  key  key
- *     /   \/   \/  \
- *    n1   n2   n3  n4
+ *            k1  k2  k3  k4  ...
+ *           /  \/  \/  \/  \/
+ *          n1  n2  n3  n4  n5 ...
  *
- *    where n1, n2, n3, etc. represent pageids.
+ *    where k1, k2, etc. represent keys and
+ *          n1, n2, etc. represent pageids.
  *    
- *    That is: each key points to two nodes:
+ *    That is, each key points to two nodes:
  *    - one with keys less          than the pointing key
  *    - one with keys greater/equal than the pointing key
  *
@@ -43,7 +37,7 @@
  *    With the exception of the last key, the right node
  *    of key(n) is at the same time the left node of key(n+1).
  *
- *    We consequently need n+1 pointers for n keys.
+ *    We consequently need n+1 kids for n keys.
  *
  * 2) Leaf Node
  *    +------------------------------------------------------+
@@ -51,6 +45,22 @@
  *    +------------------------------------------------------+
  *     4byte  4byte  4byte   keysize*nodesz   datasize*nodesz
  *
+ *    The keys, as before, contain the keys of this tree and
+ *    the kids contain the data for their keys.
+ *
+ *    Next points to the next leaf node in the chain.
+ *    Prev points to the previous leaf node in the chain.
+ *
+ *    This way, leaf nodes form a doubly linked list
+ *    through which we can iterate scanning a range of keys
+ *    (and their data) or even the entire tree.
+ * ========================================================================
+ */
+#include <beet/node.h>
+#include <string.h>
+
+/* ------------------------------------------------------------------------
+ * initialise a node from a page (i.e. page -> node)
  * ------------------------------------------------------------------------
  */
 void beet_node_init(beet_node_t *node,
@@ -93,7 +103,7 @@ void beet_node_serialise(beet_node_t *node) {
 }
 
 /* ------------------------------------------------------------------------
- * Helper: add data to node
+ * Helper: add data to node (using ins 'inserter' method)
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t ad3ata(beet_node_t *node,
@@ -102,7 +112,6 @@ static inline beet_err_t ad3ata(beet_node_t *node,
                                 const void  *data,
                                 beet_ins_t   *ins) {
 	if (ins == NULL) return BEET_OK;
-	// fprintf(stderr, "adddata: %u -- %u.%u\n", dsize, node->self, slot);
 	return ins->inserter(ins->rsc, dsize, node->kids+slot*dsize, data);
 }
 
@@ -118,45 +127,43 @@ static inline beet_err_t add2slot(beet_node_t *node,
                                   const void  *data,
                                   beet_ins_t   *ins) {
 	char    *src = node->keys+slot*ksize;
-	uint64_t dsz = (node->size-slot)*ksize;
-	uint32_t bsz;
+	uint64_t shift = (node->size-slot)*ksize;
+	uint32_t dsz;
 
-	/* shift keys one to the right 
- 	 * beginning with slot where the new key enters */
-	if (dsz > 0) memmove(src+ksize,src,dsz);
+	/* shift keys starting from 'slot' one to the right */
+	if (shift > 0) memmove(src+ksize,src,shift);
 
-	/* copy the new key to the slot */
+	/* new key goes to 'slot' */
 	memcpy(node->keys+slot*ksize, key, ksize);
 
 	/* if we have no data, we're done */
 	if (data == NULL) return BEET_OK;
 
 	/* datasize depends on node type */
-	bsz=node->leaf?dsize:sizeof(beet_pageid_t);
+	dsz=node->leaf?dsize:sizeof(beet_pageid_t);
 
- 	dsz = (node->size-slot)*bsz;
-	src = node->kids+slot*bsz;
+ 	shift = (node->size-slot)*dsz;
+	src = node->kids+slot*dsz;
 
 	/* in a nonleaf node the data consist of 
  	 * pageids; the left pageid of the old key
- 	 * is now the left pointer of the new key,
- 	 * i.e. it stays where it is */
-	if (!node->leaf) src += bsz;
+ 	 * is now the left pointer of the new key
+ 	 * and, therefore, stays where it is */
+	if (!node->leaf) src += dsz;
 
 	/* shift data one to the right */
-	if (dsz > 0) memmove(src+bsz,src,dsz);
+	if (shift > 0) memmove(src+dsz,src,shift);
 
-	/* in the leaf we use the callback */
+	/* in a leaf we use the callback */
 	if (node->leaf) {
 		if (ins != NULL) {
 			ins->clear(ins->rsc, node->kids+slot*dsize);
 		}
 		ad3ata(node, dsize, slot, data, ins);
 	
-	/* in nonleaf nodes we copy the new one to the right
- 	 * of the new key! */
+	/* in a nonleaf we copy the new key to the right of 'slot' */
 	} else {
-		if (bsz > 0) memcpy(node->kids+(slot+1)*bsz, data, bsz);
+		if (dsz > 0) memcpy(node->kids+(slot+1)*dsz, data, dsz);
 	}
 
 	/* done ! */

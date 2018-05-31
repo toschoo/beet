@@ -131,8 +131,8 @@ int initTree(beet_tree_t *tree, char *base,
 }
 
 int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
-	beet_err_t    err;
-	beet_ins_pair_t pair;
+	beet_err_t   err;
+	beet_pair_t pair;
 
 	for(int z=hi-1;z>=lo;z--) {
 		for(int i=0;i<=z;i++) {

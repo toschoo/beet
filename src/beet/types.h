@@ -7,11 +7,28 @@
 #ifndef beet_types_decl
 #define beet_types_decl
 
+/* -----------------------------------------------------------------------
+ * Error indicator
+ * -----------------------------------------------------------------------
+ */
 typedef int beet_err_t;
 
+/* -----------------------------------------------------------------------
+ * Return a constant string describing the error
+ * -----------------------------------------------------------------------
+ */
 const char *beet_errdesc(beet_err_t err);
+
+/* -----------------------------------------------------------------------
+ * Return the OS description of the error in errno
+ * -----------------------------------------------------------------------
+ */
 const char *beet_oserrdesc();
 
+/* -----------------------------------------------------------------------
+ * Error constants
+ * -----------------------------------------------------------------------
+ */
 #define BEET_OK 0
 
 #define BEET_ERR_NOMEM    2
@@ -20,6 +37,10 @@ const char *beet_oserrdesc();
 #define BEET_ERR_NORSC    5
 #define BEET_ERR_PANIC    6
 
+/* -----------------------------------------------------------------------
+ * Errors returned from OS services
+ * -----------------------------------------------------------------------
+ */
 #define BEET_OSERR_BUSY   -2
 #define BEET_OSERR_NOMEM  -3
 #define BEET_OSERR_INVAL  -4
@@ -28,6 +49,10 @@ const char *beet_oserrdesc();
 #define BEET_OSERR_DEADLK -7
 #define BEET_OSERR_INTRP  -8
 
+/* -----------------------------------------------------------------------
+ * Errors with further information in errno
+ * -----------------------------------------------------------------------
+ */
 #define BEET_OSERR_ERRNO -100
 #define BEET_OSERR_SEEK  -101
 #define BEET_OSERR_TELL  -102
@@ -39,6 +64,15 @@ const char *beet_oserrdesc();
 #define BEET_OSERR_SLEEP -108
 
 #define BEET_OSERR_UNKN  -9999
+
+/* -----------------------------------------------------------------------
+ * insert (key, data) pairs into embedded b+tree
+ * -----------------------------------------------------------------------
+ */
+typedef struct {
+	void *key;
+	void *data;
+} beet_pair_t;
 
 #endif
 

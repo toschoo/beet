@@ -73,11 +73,11 @@ typedef void (*beet_ins_nodeclear_t)(void*, void*);
  * -------------------------------------------------------------------------
  */
 typedef struct {
-	void                  *rsc;
-	beet_insert_t     inserter;
-	beet_ins_cleanup_t cleaner;
-	beet_ins_nodeinit_t  ninit;
-	beet_ins_nodeclear_t clear;
+	void                  *rsc; /* the resource      */
+	beet_insert_t     inserter; /* insert method     */
+	beet_ins_cleanup_t cleaner; /* clean  method     */
+	beet_ins_nodeinit_t  ninit; /* node init method  */
+	beet_ins_nodeclear_t clear; /* field init method */
 } beet_ins_t;
 
 /* -------------------------------------------------------------------------
@@ -95,11 +95,6 @@ beet_err_t beet_ins_setPlain(beet_ins_t *ins);
  * Embedded inserter
  * -------------------------------------------------------------------------
  */
-typedef struct {
-	void *key;
-	void *data;
-} beet_ins_pair_t;
-
 beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void* root,
                                                const void *data);
 void beet_ins_embeddedclean(void *ins);

@@ -54,11 +54,12 @@ tools:
 
 tests:	smoke stress
 
-smoke:	$(SMK)/pagesmoke  \
-	$(SMK)/ridersmoke \
-	$(SMK)/nodesmoke  \
-	$(SMK)/treesmoke  \
-	$(SMK)/embeddedsmoke
+smoke:	$(SMK)/pagesmoke     \
+	$(SMK)/ridersmoke    \
+	$(SMK)/nodesmoke     \
+	$(SMK)/treesmoke     \
+	$(SMK)/embeddedsmoke \
+	$(SMK)/contreesmoke 
 
 stress: $(STRS)/riderstress
 
@@ -127,7 +128,7 @@ $(SMK)/nodesmoke:	lib $(SMK)/nodesmoke.o $(COM)/math.o
 			                    $(COM)/math.o      \
 			                    $(libs) -lbeet
 
-$(SMK)/treesmoke:	lib $(SMK)/treesmoke.o $(COM)/math.o
+$(SMK)/treesmoke:	lib $(SMK)/treesmoke.o $(COM)/math.o 
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/treesmoke   \
 			                    $(SMK)/treesmoke.o \
@@ -139,6 +140,15 @@ $(SMK)/embeddedsmoke:	lib $(SMK)/embeddedsmoke.o $(COM)/math.o
 			$(CC) $(LDFLAGS) -o $(SMK)/embeddedsmoke  \
 			                    $(SMK)/embeddedsmoke.o \
 			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
+$(SMK)/contreesmoke:	lib $(SMK)/contreesmoke.o $(COM)/cmd.o \
+			                          $(COM)/bench.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/contreesmoke  \
+			                    $(SMK)/contreesmoke.o \
+			                    $(COM)/cmd.o      \
+			                    $(COM)/bench.o    \
 			                    $(libs) -lbeet
 
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
@@ -175,6 +185,7 @@ clean:
 	rm -f $(SMK)/nodesmoke
 	rm -f $(SMK)/treesmoke
 	rm -f $(SMK)/embeddedsmoke
+	rm -f $(SMK)/contreesmoke
 	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 

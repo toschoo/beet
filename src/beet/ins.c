@@ -39,7 +39,7 @@ beet_err_t beet_ins_setPlain(beet_ins_t *ins) {
  * -------------------------------------------------------------------------
  */
 #define PAIR(x) \
-	((beet_ins_pair_t*)x)
+	((beet_pair_t*)x)
 
 beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void *root,
                                                 const void *data) {
