@@ -26,24 +26,33 @@
 
 /* ------------------------------------------------------------------------
  * Macro: lock roof
+ * TODO: latch or lock???
  * ------------------------------------------------------------------------
  */
-#define LOCK() \
+#define LOCK(x) \
 	if (tree->roof != NULL) {\
-		err = beet_latch_lock(&tree->rlock); \
+		if (x == READ) { \
+			err = beet_lock_read(&tree->rlock); \
+		} else { \
+			err = beet_lock_write(&tree->rlock); \
+		} \
 		if (err != BEET_OK) return err; \
-		tree->locked = 1; \
 	}
 
 /* ------------------------------------------------------------------------
  * Macro: unlock roof
+ * TODO: latch or lock???
  * ------------------------------------------------------------------------
  */
-#define UNLOCK() \
-	if (tree->roof != NULL && tree->locked) { \
-		err = beet_latch_unlock(&tree->rlock); \
+#define UNLOCK(x,l) \
+	if (tree->roof != NULL && *l) { \
+		if (x == READ) { \
+			err = beet_unlock_read(&tree->rlock); \
+		} else { \
+			err = beet_unlock_write(&tree->rlock); \
+		} \
 		if (err != BEET_OK) return err; \
-		tree->locked = 0; \
+		*l = 0; \
 	}
 
 /* ------------------------------------------------------------------------
@@ -65,7 +74,7 @@
  */
 void beet_tree_destroy(beet_tree_t *tree) {
 	if (tree == NULL) return;
-	beet_latch_destroy(&tree->rlock);
+	beet_lock_destroy(&tree->rlock);
 	if (tree->ins != NULL) {
 		tree->ins->cleaner(tree->ins);
 		free(tree->ins); tree->ins = NULL;
@@ -312,7 +321,7 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
 	tree->locked = 0;
 
 	/* init root file latch */
-	err = beet_latch_init(&tree->rlock);
+	err = beet_lock_init(&tree->rlock);
 	if (err != BEET_OK) return err;
 
 	return BEET_OK;
@@ -439,6 +448,7 @@ static beet_err_t add2mom(beet_tree_t   *tree,
                           beet_node_t  *node1,
                           beet_node_t  *node2,
                           const void     *key,
+                          char          *lock,
                    ts_algo_list_node_t *nodes);
 
 /* ------------------------------------------------------------------------
@@ -450,6 +460,7 @@ static beet_err_t insert(beet_tree_t   *tree,
                          beet_node_t   *node,
                          const void     *key,
                          const void    *data,
+                         char          *lock,
                  ts_algo_list_node_t  *nodes) 
 {
 	beet_node_t *node2=NULL;
@@ -483,7 +494,7 @@ static beet_err_t insert(beet_tree_t   *tree,
 		                 node->size * tree->ksize;
 
 		/* add the splitter to parent node */
-		err = add2mom(tree, root, node, node2, s, nodes);
+		err = add2mom(tree, root, node, node2, s, lock, nodes);
 		if (err != BEET_OK) return err;
 
 		/* store new node */
@@ -507,6 +518,7 @@ static beet_err_t add2mom(beet_tree_t   *tree,
                           beet_node_t  *node1,
                           beet_node_t  *node2,
                           const void     *key,
+                          char          *lock,
                    ts_algo_list_node_t *nodes)
 {
 	beet_err_t   err;
@@ -542,7 +554,7 @@ static beet_err_t add2mom(beet_tree_t   *tree,
 		*root = mom->self;
 
 		STOREROOT(root);
-		UNLOCK();
+		UNLOCK(WRITE, lock);
 
 		err = storeNode(tree, mom);
 		if (err != BEET_OK) return err;
@@ -555,7 +567,7 @@ static beet_err_t add2mom(beet_tree_t   *tree,
 	 * into the next node in the list,
 	 * the splitter (key) and the nodeid
 	 * of the new node */
-	return insert(tree, root, nodes->cont, key, &p2, nodes->nxt);
+	return insert(tree, root, nodes->cont, key, &p2, lock, nodes->nxt);
 }
 
 /* ------------------------------------------------------------------------
@@ -572,6 +584,7 @@ static inline int isBarrier(beet_tree_t *tree,
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t unlockAll(beet_tree_t *tree, 
+                                   char        *lock,
                                ts_algo_list_t *nodes) {
 	beet_err_t err;
 	ts_algo_list_node_t *runner, *tmp;
@@ -586,7 +599,7 @@ static inline beet_err_t unlockAll(beet_tree_t *tree,
 		ts_algo_list_remove(nodes, runner);
 		free(runner); runner = tmp;
 	}
-	UNLOCK();
+	UNLOCK(WRITE, lock);
 	return BEET_OK;
 }
 
@@ -599,6 +612,7 @@ static beet_err_t findNode(beet_tree_t     *tree,
                            beet_node_t     **trg,
                            char             mode,
                            const void       *key,
+                           char            *lock,
                            ts_algo_list_t *nodes) {
 	beet_err_t    err;
 	beet_pageid_t pge;
@@ -628,7 +642,7 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	/* in write mode, if we have reached a barrier,
 	 * we can release all nodes we locked so far */
 	if (mode == WRITE && isBarrier(tree, *trg)) {
-		err = unlockAll(tree, nodes);
+		err = unlockAll(tree, lock, nodes);
 		if (err != BEET_OK) {
 			releaseNode(tree, src); free(src);
 			return err;
@@ -639,12 +653,14 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	} else if (mode == READ) {
 		err = releaseNode(tree, src); free(src);
 		if (err != BEET_OK) {
+			UNLOCK(WRITE,lock);
 			releaseNode(tree, *trg);
 			free(*trg);
 			return err;
 		}
+		UNLOCK(READ,lock);
 	}
-	return findNode(tree, *trg, trg, mode, key, nodes);
+	return findNode(tree, *trg, trg, mode, key, lock, nodes);
 }
 
 /* ------------------------------------------------------------------------
@@ -659,6 +675,7 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 	beet_err_t err;
 	ts_algo_list_t nodes;
 	beet_node_t *node, *leaf;
+	char lock = 1;
 
 	TREENULL();
 
@@ -667,27 +684,27 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 
 	ts_algo_list_init(&nodes);
 
-	LOCK();
+	LOCK(WRITE);
 
 	err = getNode(tree, *root, WRITE, &node);
 	if (err != BEET_OK) {
-		UNLOCK();
+		UNLOCK(WRITE, &lock);
 		return err;
 	}
 
-	err = findNode(tree, node, &leaf, WRITE, key, &nodes);	
+	err = findNode(tree, node, &leaf, WRITE, key, &lock, &nodes);	
 	if (err != BEET_OK) {
-		UNLOCK();
+		UNLOCK(WRITE, &lock);
 		return err;
 	}
 
-	err = insert(tree, root, leaf, key, data, nodes.head);
+	err = insert(tree, root, leaf, key, data, &lock, nodes.head);
 	if (err != BEET_OK) return err;
 	
 	err = releaseNode(tree, leaf); free(leaf);
 	if (err != BEET_OK) return err;
 
-	err = unlockAll(tree, &nodes);
+	err = unlockAll(tree, &lock, &nodes);
 	if (err != BEET_OK) return err;
 	
 	return BEET_OK;
@@ -703,13 +720,21 @@ beet_err_t beet_tree_get(beet_tree_t  *tree,
                          beet_node_t **node) {
 	beet_err_t err;
 	beet_node_t *tmp;
+	char lock = 1;
 
+	LOCK(READ);
 	err = getNode(tree, root, READ, &tmp);
-	if (err != BEET_OK) return err;
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
 
-	err = findNode(tree, tmp, node, READ, key, NULL);
-	if (err != BEET_OK) return err;
-
+	err = findNode(tree, tmp, node, READ, key, &lock, NULL);
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
+	UNLOCK(READ, &lock);
 	return BEET_OK;
 }
 

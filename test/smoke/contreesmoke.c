@@ -214,10 +214,11 @@ int readRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
 			return -1;
 		}
 		if (!beet_node_equal(node, slot, KEYSZ, &k, &cmp)) {
-			fprintf(stderr, "key not found: %d in %u (%d - %d)\n", k,
-					node->self,
-			                (*(int*)node->keys),
-			                (*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
+			fprintf(stderr,
+			"%lu: key not found: %d in %u (%d - %d)\n",
+			pthread_self(), k, node->self,
+			(*(int*)node->keys),
+			(*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
 			return -1;
 		}
 		// fprintf(stderr, "found: %d in %d\n", k, slot);
@@ -243,24 +244,32 @@ int readRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
  * What the threads do
  * -----------------------------------------------------------------------
  */
-void randomReadOrWrite(beet_tree_t *tree,
-                       beet_pageid_t *root,
-                       int lo, int hi,
-                       int *errs) {
+void randomReadOrWrite(params_t *params,
+                       int lo, int hi) {
 	int x;
 
 	for(int i=0; i<5; i++) {
 		x = rand()%2;
 
 		if (x) {
-			fprintf(stderr, "writing to %d\n", hi);
-			if (writeOneNode(tree, root, lo, hi) != 0) {
-				(*errs)++; return;
+			fprintf(stderr, "%lu writing to %d\n",
+			                 pthread_self(), hi);
+			if (writeOneNode(&params->tree,
+			                 &params->root, lo, hi) != 0) {
+				beet_latch_lock(&params->latch);
+				params->err++;
+				beet_latch_unlock(&params->latch);
+				return;
 			}
 		} else {
-			fprintf(stderr, "reading to %d\n", NODESZ-1);
-			if (readRandom(tree, *root, NODESZ-1) != 0) {
-				(*errs)++; return;
+			fprintf(stderr, "%lu reading to %d\n",
+			                 pthread_self(), NODESZ-1);
+			if (readRandom(&params->tree,
+			               params->root, NODESZ-1) != 0) {
+				beet_latch_lock(&params->latch);
+				params->err++;
+				beet_latch_unlock(&params->latch);
+				return;
 			}
 		}
 	}
@@ -371,11 +380,9 @@ void *task(void *p) {
 	}
 
 	/* do the job */
-	randomReadOrWrite(&params.tree,
-	                  &params.root,
+	randomReadOrWrite(&params,
 	                  range->lo,
-	                  range->hi,
-	                  &params.err);
+	                  range->hi);
 
 	free(range);
 

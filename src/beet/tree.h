@@ -34,7 +34,7 @@ typedef struct beet_tree_st {
 	ts_algo_comprsc_t cmp; /* key compare callback    */
 	beet_ins_t       *ins; /* data insertion callback */
 	FILE            *roof; /* root file               */
-	beet_latch_t    rlock; /* root file protection    */
+	beet_lock_t     rlock; /* root file protection    */
 	char           locked; /* is currently locked     */
 } beet_tree_t;
 
