@@ -60,6 +60,13 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
 void beet_tree_destroy(beet_tree_t *tree);
 
 /* ------------------------------------------------------------------------
+ * Create first node in the tree (if needed)
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_makeRoot(beet_tree_t   *tree,
+                              beet_pageid_t *root);
+
+/* ------------------------------------------------------------------------
  * Insert data into the tree
  * ------------------------------------------------------------------------
  */

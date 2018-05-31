@@ -336,6 +336,7 @@ static beet_err_t getpage(beet_rider_t *rider,
 		return BEET_ERR_NOMEM;
 	}
 found:
+
 	node->used++;
 
 	UNLOCK();

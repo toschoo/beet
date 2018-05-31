@@ -11,12 +11,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <sys/stat.h>
 
 #define NODESZ 14
 #define BIG   160
 #define BYTES 128
 #define KEYSZ   4
-#define DATASZ  4
 
 void errmsg(beet_err_t err, char *s) {
 	fprintf(stderr, "%s: %s (%d)\n",
@@ -53,6 +53,7 @@ int createFile(char *path, char *name) {
 	sprintf(p, "%s/%s", path, name);
 	f = fopen(p, "w"); free(p);
 	if (f == NULL) {
+		fprintf(stderr, "cannot open file %s/%s\n", path, name);
 		perror("cannot open file");
 		return -1;
 	}
@@ -60,6 +61,14 @@ int createFile(char *path, char *name) {
 		perror("cannot close file");
 		return -1;
 	}
+	return 0;
+}
+
+int createPath(char *path) {
+	struct stat st;
+
+	if (stat(path,&st) == 0) return 0;
+	if (mkdir(path,0755) != 0) return -1;
 	return 0;
 }
 
@@ -75,11 +84,17 @@ ts_algo_cmp_t compare(void *ignore, void *one, void *two) {
 int initTree(beet_tree_t *tree, char *base,
                                 char *name1,
                                 char *name2,
-                                FILE *roof,
-                       beet_pageid_t *root) {
+                                 FILE *roof,
+                        beet_pageid_t *root,
+                            beet_ins_t *ins) {
 	beet_err_t err;
 	beet_rider_t *nlfs, *lfs;
-	beet_ins_t *ins;
+	size_t ds;
+
+	if (createPath(base) != 0) {
+		perror("cannot create base");
+		return -1;
+	}
 
 	if (createFile(base, name1) != 0) return -1;
 	if (createFile(base, name2) != 0) return -1;
@@ -94,38 +109,40 @@ int initTree(beet_tree_t *tree, char *base,
 		fprintf(stderr, "out-of-mem\n");
 		return -1;
 	}
-	ins = calloc(1, sizeof(beet_ins_t));
-	if (ins == NULL) {
-		fprintf(stderr, "out-of-mem\n");
-		return -1;
-	}
-	beet_ins_setPlain(ins);
 	
 	if (initRider(nlfs, base, name1) != 0) return -1;
 	if (initRider(lfs, base, name2) != 0) return -1;
 
-	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, DATASZ,
-	                         nlfs, lfs, roof, &compare, ins);
+	ds = ins == NULL ? 0 : sizeof(beet_pageid_t);
+	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, ds,
+	                     nlfs, lfs, roof, &compare, ins);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot initialise rider");
 		return -1;
 	}
-	err = beet_tree_makeRoot(tree, root);
-	if (err != BEET_OK) {
-		errmsg(err, "cannot make root");
-		return -1;
+	if (ins != NULL) {
+		err = beet_tree_makeRoot(tree, root);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot make root");
+			return -1;
+		}
 	}
 	return 0;
 }
 
 int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	beet_err_t    err;
+	beet_ins_pair_t pair;
 
 	for(int z=hi-1;z>=lo;z--) {
-		err = beet_tree_insert(tree, root, &z, &z);
-		if (err != BEET_OK) {
-			errmsg(err, "cannot insert into tree");
-			return -1;
+		for(int i=0;i<z;i++) {
+			pair.key = &i;
+			pair.data = NULL;
+			err = beet_tree_insert(tree, root, &z, &pair);
+			if (err != BEET_OK) {
+				errmsg(err, "cannot insert into tree");
+				return -1;
+			}
 		}
 	}
 	return 0;
@@ -157,14 +174,6 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
 			                (*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
 			return -1;
 		}
-		// fprintf(stderr, "found: %d in %d\n", k, slot);
-		if (memcmp(node->keys+slot*KEYSZ,
-		           node->kids+slot*DATASZ, KEYSZ) != 0) {
-			fprintf(stderr, "key and data differ: %d - %d\n",
-				(*(int*)(node->keys+slot*KEYSZ)),
-				(*(int*)(node->kids+slot*KEYSZ)));
-			return -1;
-		}
 
 		err = beet_tree_release(tree, node);
 		if (err != BEET_OK) {
@@ -179,16 +188,29 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
 
 int main() {
 	char *path = "rsc";
-	char *nlfs = "test10.noleaf";
-	char *lfs = "test10.leaf";
+	char *epath = "rsc/emb";
+	char *nlfs = "test15.noleaf";
+	char *lfs = "test15.leaf";
 	char *p;
-	FILE *roof;
+	FILE *roof=NULL;
 	int rc = EXIT_SUCCESS;
 	beet_tree_t tree;
+	beet_tree_t *etree;
 	beet_pageid_t root = BEET_PAGE_LEAF;
+	beet_ins_t *ins;
 	char haveTree = 0;
 
 	srand(time(NULL));
+
+	etree = calloc(1, sizeof(beet_tree_t));
+	if (etree == NULL) {
+		fprintf(stderr, "out-of-mem\n");
+		return EXIT_FAILURE;
+	}
+	if (initTree(etree, epath, nlfs, lfs, NULL, NULL, NULL) != 0) {
+		fprintf(stderr, "cannot init embedded tree\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 
 	if (createFile(path, "roof") != 0) {
 		fprintf(stderr, "cannot create roof\n");
@@ -206,81 +228,27 @@ int main() {
 		fprintf(stderr, "cannot open roof\n");
 		return EXIT_FAILURE;
 	}
+	ins = calloc(1, sizeof(beet_ins_t));
+	if (ins == NULL) {
+		fprintf(stderr, "cannot alloc ins\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	beet_ins_setEmbedded(ins, etree);
 
-	if (initTree(&tree, path, nlfs, lfs, roof, &root) != 0) {
+	if (initTree(&tree, path, nlfs, lfs, roof, &root, ins) != 0) {
 		fprintf(stderr, "cannot init tree\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	haveTree = 1;
 
 	if (testWriteOneNode(&tree, &root, 0, NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, NODESZ-1, 2*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, 2*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed 2x\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, 2*NODESZ-1, 4*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, 4*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed with 4x\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, 4*NODESZ-1, 8*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, 8*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed with 8x\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, 8*NODESZ-1, 16*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, 16*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed with 8x\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, 16*NODESZ-1, 32*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, 32*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed with 8x\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, 32*NODESZ-1, 64*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root, 64*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed with 8x\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testWriteOneNode(&tree, &root, 64*NODESZ-1, 128*NODESZ-1) != 0) {
-		fprintf(stderr, "testWriteOneNode failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (testReadRandom(&tree, root,128*NODESZ-1) != 0) {
-		fprintf(stderr, "testReadRandom failed with 8x\n");
+		fprintf(stderr, "cannot write to %d\n", NODESZ-1);
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
 cleanup:
 	if (haveTree) beet_tree_destroy(&tree);
-	fclose(roof);
+	if (roof != NULL) fclose(roof);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");
 	} else {

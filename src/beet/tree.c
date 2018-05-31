@@ -29,16 +29,18 @@
  * ------------------------------------------------------------------------
  */
 #define LOCK() \
-	err = beet_latch_lock(&tree->rlock); \
-	if (err != BEET_OK) return err; \
-	tree->locked = 1;
+	if (tree->roof != NULL) {\
+		err = beet_latch_lock(&tree->rlock); \
+		if (err != BEET_OK) return err; \
+		tree->locked = 1; \
+	}
 
 /* ------------------------------------------------------------------------
  * Macro: unlock roof
  * ------------------------------------------------------------------------
  */
 #define UNLOCK() \
-	if (tree->locked) { \
+	if (tree->roof != NULL && tree->locked) { \
 		err = beet_latch_unlock(&tree->rlock); \
 		if (err != BEET_OK) return err; \
 		tree->locked = 0; \
@@ -49,11 +51,13 @@
  * ------------------------------------------------------------------------
  */
 #define STOREROOT(root) \
-	if (fseek(tree->roof, 0, SEEK_SET) !=0) return BEET_OSERR_SEEK; \
-	if (fwrite(root, sizeof(beet_pageid_t), 1, tree->roof) != 1) { \
-		return BEET_OSERR_SEEK; \
-	} \
-	if (fflush(tree->roof) != 0) return BEET_OSERR_FLUSH;
+	if (tree->roof != NULL) { \
+		if (fseek(tree->roof, 0, SEEK_SET) !=0) \
+			return BEET_OSERR_SEEK; \
+		if (fwrite(root, sizeof(beet_pageid_t), 1, tree->roof) != 1) \
+			return BEET_OSERR_SEEK; \
+		if (fflush(tree->roof) != 0) return BEET_OSERR_FLUSH; \
+	}
 
 /* ------------------------------------------------------------------------
  * Destroy B+Tree
@@ -126,6 +130,10 @@ static inline beet_err_t newLeaf(beet_tree_t  *tree,
 	(*node)->prev = BEET_PAGE_NULL;
 	(*node)->mode = WRITE;
 
+	/* insert-specific initialiser */
+	if (tree->ins != NULL) {
+		tree->ins->ninit(tree->ins, tree->lsize, (*node)->kids);
+	}
 	return BEET_OK;
 }
 
@@ -164,8 +172,8 @@ static inline beet_err_t getNode(beet_tree_t  *tree,
                                  char          mode,
                                  beet_node_t **node) 
 {
+	beet_page_t *page=NULL;
 	beet_err_t    err;
-	beet_page_t *page;
 	beet_rider_t  *rd;
 	char         leaf;
 	uint32_t       sz;
@@ -191,6 +199,10 @@ static inline beet_err_t getNode(beet_tree_t  *tree,
 			err = beet_rider_getRead(rd, pid, &page);
 		} else {
 			err = beet_rider_getWrite(rd, pid, &page);
+		}
+		if (err == BEET_OK && page == NULL) {
+			fprintf(stderr, "getting page %u: %p\n", pid, page);
+			return BEET_ERR_PANIC;
 		}
 		if (err == BEET_OK) break;
 		if (err == BEET_ERR_NORSC) continue;
@@ -244,6 +256,34 @@ static inline beet_err_t releaseNode(beet_tree_t *tree,
 }
 
 /* ------------------------------------------------------------------------
+ * Allocate first node in tree
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_makeRoot(beet_tree_t *tree, beet_pageid_t *root) {
+	beet_node_t *node;
+	beet_err_t    err;
+
+	err = newLeaf(tree, &node);
+	if (err != BEET_OK) return err;
+
+	*root = toLeaf(node->self);
+
+	STOREROOT(root);
+
+	err = storeNode(tree, node);
+	if (err != BEET_OK) {
+		free(node); return err;
+	}
+
+	err = releaseNode(tree, node);
+	if (err != BEET_OK) {
+		free(node); return err;
+	}
+	free(node);
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Init B+Tree
  * ------------------------------------------------------------------------
  */
@@ -257,7 +297,6 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
                           FILE            *roof,
                           ts_algo_comprsc_t cmp,
                           beet_ins_t       *ins) {
-	beet_node_t *node;
 	beet_err_t    err;
 
 	TREENULL();
@@ -277,19 +316,6 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
 	err = beet_latch_init(&tree->rlock);
 	if (err != BEET_OK) return err;
 
-	/* create first leaf node*/
-	err = newLeaf(tree, &node);
-	if (err != BEET_OK) return err;
-
-	err = storeNode(tree, node);
-	if (err != BEET_OK) {
-		free(node); return err;
-	}
-	err = releaseNode(tree, node);
-	if (err != BEET_OK) {
-		free(node); return err;
-	}
-	free(node);
 	return BEET_OK;
 }
 

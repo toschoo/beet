@@ -2,6 +2,15 @@
  * (c) Tobias Schoofs, 2018
  * ========================================================================
  * Lock: read/write locks
+ * ----------------------
+ * TODO:
+ * - it might be a good idea to switch
+ *   from pthread rwlocks to fcntl file locks
+ *   with several advantages:
+ *   + we do not need to have the locked object in the cache
+ *     (with the current approach, all pages
+ *      currently used must be in the page cache).
+ *   + we can upgrade locks from read to write
  * ========================================================================
  */
 #include <beet/lock.h>

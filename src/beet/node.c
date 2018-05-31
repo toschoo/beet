@@ -147,8 +147,6 @@ static inline beet_err_t add2slot(beet_node_t *node,
 
 	/* in the leaf we use the callback */
 	if (node->leaf) {
-		memset(node->kids+slot*dsize,
-		                  0xff,dsize);
 		ad3ata(node, dsize, slot, data, ins);
 	
 	/* in nonleaf nodes we copy the new one to the right
