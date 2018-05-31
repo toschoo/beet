@@ -23,12 +23,14 @@ beet_err_t beet_ins_plain(void *ignore, uint32_t sz, void* trg,
 
 void beet_ins_plainclean(void *ignore) {}
 void beet_ins_plaininit(void *ignore, uint32_t n, void *kids) {}
+void beet_ins_plainclear(void *ignore, void *kids) {}
 
 beet_err_t beet_ins_setPlain(beet_ins_t *ins) {
 	ins->rsc = NULL;
 	ins->inserter = &beet_ins_plain;
 	ins->cleaner = &beet_ins_plainclean;
 	ins->ninit = &beet_ins_plaininit;
+	ins->clear = &beet_ins_plainclear;
 	return BEET_OK;
 }
 
@@ -45,7 +47,7 @@ beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void *root,
 	if (*(beet_pageid_t*)root == BEET_PAGE_NULL) {
 		err = beet_tree_makeRoot(tree, root);
 		if (err != BEET_OK) return err;
-		fprintf(stderr, "new root is %u\n", *(beet_pageid_t*)root);
+		// fprintf(stderr, "new root is %u\n", *(beet_pageid_t*)root);
 	}
 	return beet_tree_insert(tree, root, PAIR(data)->key,
 	                                    PAIR(data)->data);
@@ -68,10 +70,15 @@ void beet_ins_embeddedinit(void *ignore, uint32_t n, void *kids) {
 	}
 }
 
+void beet_ins_embeddedclear(void *ignore, void *kid) {
+		*(beet_pageid_t*)kid = BEET_PAGE_NULL;
+}
+
 beet_err_t beet_ins_setEmbedded(beet_ins_t *ins, void *subtree) {
 	ins->rsc = subtree;
 	ins->inserter = &beet_ins_embedded;
 	ins->cleaner = &beet_ins_embeddedclean;
 	ins->ninit = &beet_ins_embeddedinit;
+	ins->clear = &beet_ins_embeddedclear;
 	return BEET_OK;
 }

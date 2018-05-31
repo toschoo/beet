@@ -102,6 +102,7 @@ static inline beet_err_t ad3ata(beet_node_t *node,
                                 const void  *data,
                                 beet_ins_t   *ins) {
 	if (ins == NULL) return BEET_OK;
+	// fprintf(stderr, "adddata: %u -- %u.%u\n", dsize, node->self, slot);
 	return ins->inserter(ins->rsc, dsize, node->kids+slot*dsize, data);
 }
 
@@ -147,6 +148,9 @@ static inline beet_err_t add2slot(beet_node_t *node,
 
 	/* in the leaf we use the callback */
 	if (node->leaf) {
+		if (ins != NULL) {
+			ins->clear(ins->rsc, node->kids+slot*dsize);
+		}
 		ad3ata(node, dsize, slot, data, ins);
 	
 	/* in nonleaf nodes we copy the new one to the right

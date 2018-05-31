@@ -52,6 +52,17 @@ typedef void (*beet_ins_cleanup_t)(void*);
 typedef void (*beet_ins_nodeinit_t)(void*, uint32_t, void*);
 
 /* -------------------------------------------------------------------------
+ * Generic field initialiser callback
+ * ----------------------------------
+ * Initilises one cell in the data segment according to
+ * the requirements of the specific insert closure. 
+ * Parameters: 1) resource ("closure")
+ *             2) The kids segment of the node
+ * -------------------------------------------------------------------------
+ */
+typedef void (*beet_ins_nodeclear_t)(void*, void*);
+
+/* -------------------------------------------------------------------------
  * Generic insert
  * --------------
  * It stores
@@ -66,6 +77,7 @@ typedef struct {
 	beet_insert_t     inserter;
 	beet_ins_cleanup_t cleaner;
 	beet_ins_nodeinit_t  ninit;
+	beet_ins_nodeclear_t clear;
 } beet_ins_t;
 
 /* -------------------------------------------------------------------------
@@ -76,6 +88,7 @@ beet_err_t beet_ins_plain(void *ignore, uint32_t sz, void* trg,
                                              const void *data);
 void beet_ins_plainclean(void *ignore);
 void beet_ins_plaininit(void *ignore, uint32_t n, void *kids);
+void beet_ins_plainclear(void *ignore, void *kids);
 beet_err_t beet_ins_setPlain(beet_ins_t *ins);
 
 /* -------------------------------------------------------------------------
@@ -91,6 +104,7 @@ beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void* root,
                                                const void *data);
 void beet_ins_embeddedclean(void *ins);
 void beet_ins_embeddedinit(void *ignore, uint32_t n, void *kids);
+void beet_ins_embeddedclear(void *ignore, void *kids);
 beet_err_t beet_ins_setEmbedded(beet_ins_t *ins, void *subtree);
 
 #endif

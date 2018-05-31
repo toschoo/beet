@@ -135,7 +135,7 @@ int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	beet_ins_pair_t pair;
 
 	for(int z=hi-1;z>=lo;z--) {
-		for(int i=0;i<z;i++) {
+		for(int i=0;i<=z;i++) {
 			pair.key = &i;
 			pair.data = NULL;
 			err = beet_tree_insert(tree, root, &z, &pair);
@@ -151,10 +151,11 @@ int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 int testReadRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
 	beet_err_t    err;
 	beet_node_t *node;
+	beet_pageid_t *root2;
 	int32_t slot;
 	int k;
 
-	for(int i=0;i<50;i++) {
+	for(int i=0;i<10;i++) {
 		k=rand()%hi;
 
 		err = beet_tree_get(tree, root, &k, &node);
@@ -173,6 +174,13 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
 			                (*(int*)node->keys),
 			                (*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
 			return -1;
+		}
+
+		if (k > 0 && tree->ins != NULL) {
+			root2 = (beet_pageid_t*)(node->kids+slot*KEYSZ);
+			if (testReadRandom(tree->ins->rsc, *root2, k) != 0) {
+				return -1;
+			}
 		}
 
 		err = beet_tree_release(tree, node);
@@ -243,6 +251,50 @@ int main() {
 
 	if (testWriteOneNode(&tree, &root, 0, NODESZ-1) != 0) {
 		fprintf(stderr, "cannot write to %d\n", NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, root, NODESZ-1) != 0) {
+		fprintf(stderr, "cannot read %d\n", NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testWriteOneNode(&tree, &root, NODESZ-1, 2*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot write to %d\n", 2*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, root, 2*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot read %d\n", 2*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testWriteOneNode(&tree, &root, 2*NODESZ-1, 4*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot write to %d\n", 4*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, root, 4*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot read %d\n", 4*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testWriteOneNode(&tree, &root, 4*NODESZ-1, 8*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot write to %d\n", 8*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, root, 8*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot read %d\n", 8*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testWriteOneNode(&tree, &root, 8*NODESZ-1, 16*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot write to %d\n", 16*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, root, 16*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot read %d\n", 16*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testWriteOneNode(&tree, &root, 16*NODESZ-1, 32*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot write to %d\n", 32*NODESZ-1);
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, root, 32*NODESZ-1) != 0) {
+		fprintf(stderr, "cannot read %d\n", 32*NODESZ-1);
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
