@@ -21,7 +21,9 @@
  * Allocate a new page in a file
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz) {
+beet_err_t beet_page_alloc(beet_page_t **page,
+                           FILE *store, off_t pos,
+                           uint32_t sz) {
 	off_t k;
 	int  fd;
 	beet_err_t err;
@@ -31,11 +33,13 @@ beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz) {
 
 	fd = fileno(store);
 	if (fd < 0) return BEET_ERR_BADF;
+	/*
 	if (fsync(fd) != 0) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_FLUSH;
 	}
-	k = lseek(fd, 0, SEEK_END);
+	*/
+	k = lseek(fd, pos, SEEK_SET);
 	if (k < 0) return BEET_OSERR_SEEK;
 	*page = calloc(1, sizeof(beet_page_t));
 	if (*page == NULL) return BEET_ERR_NOMEM;
@@ -45,16 +49,16 @@ beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_WRITE;
 	}
+	/*
 	if (fsync(fd) != 0) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_FLUSH;
 	}
-	/*
+	*/
 	if (fflush(store) != 0) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_FLUSH;
 	}
-	*/
 	(*page)->pageid = (beet_pageid_t)(k/sz);
 	return BEET_OK;
 }

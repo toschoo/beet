@@ -33,13 +33,15 @@ int writeFibs(FILE *store) {
 	uint64_t f1=1, f2=1;
 	beet_err_t err;
 	beet_page_t *page;
+	off_t pos = 0;
 	
 	for(int i=0; i<10;i++) {
-		err = beet_page_alloc(&page,store,BYTES);
+		err = beet_page_alloc(&page,store,pos,BYTES);
 		if (err != BEET_OK) {
 			fprintf(stderr, "cannot allocate page: %d\n", err);
 			return -1;
 		}
+		pos += BYTES;
 		fprintf(stderr, "writing page %d\n", page->pageid);
 		fibonacci_r((uint64_t*)page->data, SIZE, f1, f2);
 		memcpy(&f1, page->data+112, 8);

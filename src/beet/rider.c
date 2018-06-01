@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 /* ------------------------------------------------------------------------
  * Node
@@ -39,8 +40,10 @@ static beet_err_t newNode(beet_rider_node_t **node,
 
 	if (pageid == BEET_PAGE_NULL) {
 		err = beet_page_alloc(&(*node)->page, rider->file,
+		                                      rider->fsz,
 		                                      rider->pagesz);
 		if (err != BEET_OK) return err;
+		rider->fsz += rider->pagesz;
 	} else {
 		(*node)->page = calloc(1, sizeof(beet_page_t));
 		if ((*node)->page == NULL) {
@@ -130,6 +133,7 @@ static void delete(void  *tree,
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t openFile(beet_rider_t *rider) {
+	struct stat st;
 	size_t s;
 	char *path;
 
@@ -140,6 +144,9 @@ static inline beet_err_t openFile(beet_rider_t *rider) {
 	if (path == NULL) return BEET_ERR_NOMEM;
 
 	sprintf(path, "%s/%s", rider->base, rider->name);
+
+	if (stat(path, &st) != 0) return BEET_ERR_NOFILE;
+	rider->fsz = st.st_size;
 
 	rider->file = fopen(path, "rb+"); free(path);
 	if (rider->file == NULL) return BEET_OSERR_OPEN;

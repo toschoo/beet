@@ -31,6 +31,7 @@ typedef struct {
 	char           *base; /* base path                 */
 	char           *name; /* file name                 */
 	FILE           *file; /* the file                  */
+	off_t            fsz; /* current file size         */
 	uint32_t      pagesz; /* size of one page          */
 	uint32_t          sz; /* # of pages in the cache   */
 	uint32_t         max; /* max of pages in the cache */

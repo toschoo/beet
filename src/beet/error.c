@@ -22,6 +22,7 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_ERR_NORSC:  return "resource is busy; try again";
 	case BEET_ERR_PANIC:  return "PANIC! This is a bug!";
 	case BEET_ERR_BADF:  return "bad file";
+	case BEET_ERR_NOFILE: return "file does not exist";
 
 	case BEET_OSERR_BUSY: return "resource is busy";
 	case BEET_OSERR_NOMEM: return "out of memory";

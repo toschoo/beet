@@ -475,6 +475,7 @@ int initThreads(pthread_t **tids, int threads) {
 			return -1;
 		}
 	}
+	nap();
 	return 0;
 }
 
@@ -525,15 +526,16 @@ int testrun(int threads) {
 		fprintf(stderr, "cannot init threads\n");
 		return -1;
 	}
+	/* wait for all threads running */
+	if (waitForEvent(threads) < 0) {
+		fprintf(stderr, "cannot wait for event (up)\n");
+		return -1;
+	}
+
 	/* let threads run */
 	err = beet_latch_unlock(&params.stopper);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot unlock stopper");
-		return -1;
-	}
-	/* wait for all threads running */
-	if (waitForEvent(threads) < 0) {
-		fprintf(stderr, "cannot wait for event (up)\n");
 		return -1;
 	}
 
