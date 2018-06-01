@@ -617,6 +617,7 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	beet_err_t    err;
 	beet_pageid_t pge;
 
+	/* we are at the bottom */
 	if (src->leaf) {
 		*trg = src; return BEET_OK;
 	}
@@ -628,11 +629,21 @@ static beet_err_t findNode(beet_tree_t     *tree,
 			return BEET_ERR_NOMEM;
 		}
 	}
+
+	/* search pointer to next node */
 	pge = beet_node_searchPageid(src, tree->ksize, key, tree->cmp);
 	if (pge == BEET_PAGE_NULL) {
 		releaseNode(tree, src); free(src);
 		return BEET_ERR_PANIC;
 	}
+
+	/* we obtain the next lock,
+	 * before releasing the previous one.
+	 * deadlock detectors (e.g. helgrind)
+	 * do not like this. But we must not
+	 * release the previous lock earlier.
+	 * Otherwise, something may change
+	 * before we actually reach the our target */
 	err = getNode(tree, pge, mode, trg);
 	if (err != BEET_OK) {
 		releaseNode(tree, src); free(src);
@@ -675,7 +686,8 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 	beet_err_t err;
 	ts_algo_list_t nodes;
 	beet_node_t *node, *leaf;
-	char lock = 1;
+	char lock = 1; /* controls whether we have
+	                  currently locked the root pointer */
 
 	TREENULL();
 
@@ -763,16 +775,6 @@ beet_err_t beet_tree_release(beet_tree_t *tree,
                              beet_node_t *node) {
 	return releaseNode(tree, node);
 }
-
-/* ------------------------------------------------------------------------
- * Apply function on all (key,data) pairs in range (a.k.a. 'map')
- * ------------------------------------------------------------------------
- */
-
-/* ------------------------------------------------------------------------
- * Fold all (key,data) pairs in range to result (a.k.a. 'reduce')
- * ------------------------------------------------------------------------
- */
 
 /* ------------------------------------------------------------------------
  * Height of the tree (debugging)

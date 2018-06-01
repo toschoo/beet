@@ -39,16 +39,19 @@ void errmsg(beet_err_t err, char *msg) {
  * -----------------------------------------------------------------------
  */
 typedef struct {
-	beet_latch_t  latch;
-	pthread_mutex_t  mu;
-	pthread_cond_t cond;
-	beet_tree_t    tree;
-	beet_pageid_t  root;
-	FILE          *roof;
-	int         running;
-	int             err;
+	beet_latch_t   latch;
+	beet_latch_t stopper;
+	beet_tree_t     tree;
+	beet_pageid_t   root;
+	FILE           *roof;
+	int          running;
+	int              err;
 } params_t;
 
+/* -----------------------------------------------------------------------
+ * Range of keys to write
+ * -----------------------------------------------------------------------
+ */
 typedef struct {
 	int lo;
 	int hi;
@@ -73,6 +76,10 @@ int initRider(beet_rider_t *rider, char *base, char *name) {
 	return 0;
 }
 
+/* -----------------------------------------------------------------------
+ * Create file
+ * -----------------------------------------------------------------------
+ */
 int createFile(char *path, char *name) {
 	FILE *f;
 	char *p = NULL;
@@ -126,6 +133,10 @@ FILE *createRoof(char *path) {
 	return roof;
 }
 
+/* -----------------------------------------------------------------------
+ * Compare operation
+ * -----------------------------------------------------------------------
+ */
 #define DEREF(x) \
 	(*(int*)x)
 
@@ -135,6 +146,10 @@ ts_algo_cmp_t cmp(void *ignore, void *one, void *two) {
 	return ts_algo_cmp_equal;
 }
 
+/* -----------------------------------------------------------------------
+ * initialise tree
+ * -----------------------------------------------------------------------
+ */
 int initTree(beet_tree_t *tree, char *base,
                                 char *name1,
                                 char *name2,
@@ -181,7 +196,11 @@ int initTree(beet_tree_t *tree, char *base,
 	return 0;
 }
 
-int writeOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
+/* -----------------------------------------------------------------------
+ * Write keys in range lo - hi
+ * -----------------------------------------------------------------------
+ */
+int writeRange(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	beet_err_t    err;
 
 	for(int z=hi-1;z>=lo;z--) {
@@ -194,6 +213,10 @@ int writeOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	return 0;
 }
 
+/* -----------------------------------------------------------------------
+ * Read data up to hi
+ * -----------------------------------------------------------------------
+ */
 int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 	beet_err_t    err;
 	beet_node_t *node;
@@ -248,7 +271,7 @@ void randomReadOrWrite(params_t *params,
                        int lo, int hi) {
 	int x;
 
-	for(int i=0; i<5; i++) {
+	for(int i=0; i<10; i++) {
 		x = rand()%2;
 
 		if (x) {
@@ -256,8 +279,8 @@ void randomReadOrWrite(params_t *params,
 			fprintf(stderr, "%lu writing to %d\n",
 			                 pthread_self(), hi);
 			*/
-			if (writeOneNode(&params->tree,
-			                 &params->root, lo, hi) != 0) {
+			if (writeRange(&params->tree,
+			               &params->root, lo, hi) != 0) {
 				beet_latch_lock(&params->latch);
 				params->err++;
 				beet_latch_unlock(&params->latch);
@@ -285,7 +308,6 @@ void randomReadOrWrite(params_t *params,
  */
 int params_init(params_t *params, int ts) {
 	beet_err_t err;
-	int x;
 
 	params->running = 0;
 	params->err = 0;
@@ -295,14 +317,9 @@ int params_init(params_t *params, int ts) {
 		errmsg(err, "cannot init latch");
 		return -1;
 	}
-	x = pthread_mutex_init(&params->mu, NULL);
-	if (x != 0) {
-		fprintf(stderr, "cannot init mutex: %d\n", x);
-		return -1;
-	}
-	x = pthread_cond_init(&params->cond, NULL);
-	if (x != 0) {
-		fprintf(stderr, "cannot init conditional: %d\n", x);
+	err = beet_latch_init(&params->stopper);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot init latch");
 		return -1;
 	}
 	params->roof = createRoof("rsc");
@@ -325,8 +342,7 @@ int params_init(params_t *params, int ts) {
  */
 void params_destroy(params_t *params) {
 	beet_tree_destroy(&params->tree);
-	pthread_mutex_destroy(&params->mu);
-	pthread_cond_destroy(&params->cond);
+	beet_latch_destroy(&params->stopper);
 	beet_latch_destroy(&params->latch);
 	fclose(params->roof);
 }
@@ -344,14 +360,6 @@ params_t params;
 void *task(void *p) {
 	beet_err_t err;
 	range_t *range = p;
-	int x;
-
-	/* protect the conditional */
-	x = pthread_mutex_lock(&params.mu);
-	if (x != 0) {
-		fprintf(stderr, "cannot lock mutex: %d\n", x);
-		return NULL;
-	}
 
 	/* protect params */
 	err = beet_latch_lock(&params.latch);
@@ -369,17 +377,17 @@ void *task(void *p) {
 		return NULL;
 	}
 
-	/* wait for conditional */
-	x = pthread_cond_wait(&params.cond, &params.mu);
-	if (x != 0) {
-		fprintf(stderr, "cannot wait on conditional: %d\n", x);
+	/* wait for others */
+	err = beet_latch_lock(&params.stopper);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot lock stopper\n");
 		return NULL;
 	}
 
-	/* unlock the conditional */
-	x = pthread_mutex_unlock(&params.mu);
-	if (x != 0) {
-		fprintf(stderr, "cannot unlock mutex: %d\n", x);
+	/* let others pass */
+	err = beet_latch_unlock(&params.stopper);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot unlock stopper\n");
 		return NULL;
 	}
 
@@ -432,13 +440,12 @@ int64_t waitForEvent(int event) {
 			return -1;
 		}
 		if (count == event) break;
-		// fprintf(stderr, "waiting: %d\n", count);
 		nap();
 	}
 	timestamp(&t2);
-	nap();
 	if (event == 0) fprintf(stderr, "ALL THREADS FINISHED\n");
 	else fprintf(stderr, "THREADS RUNNING: %d\n", params.running);
+	nap();
 	return minus(&t2,&t1);
 }
 
@@ -493,8 +500,8 @@ void destroyThreads(pthread_t *tids, int threads) {
  * -----------------------------------------------------------------------
  */
 int testrun(int threads) {
+	beet_err_t err;
 	pthread_t *tids;
-	int x;
 	int64_t m;
 
 	/* initialise parameters */
@@ -503,8 +510,14 @@ int testrun(int threads) {
 		return -1;
 	}
 	/* write the first node */
-	if (writeOneNode(&params.tree, &params.root, 0, NODESZ-1) != 0) {
+	if (writeRange(&params.tree, &params.root, 0, NODESZ-1) != 0) {
 		fprintf(stderr, "cannot write first node\n");
+		return -1;
+	}
+	/* make threads stop here */
+	err = beet_latch_lock(&params.stopper);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot lock stopper");
 		return -1;
 	}
 	/* start threads */
@@ -512,28 +525,31 @@ int testrun(int threads) {
 		fprintf(stderr, "cannot init threads\n");
 		return -1;
 	}
+	/* let threads run */
+	err = beet_latch_unlock(&params.stopper);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot unlock stopper");
+		return -1;
+	}
 	/* wait for all threads running */
 	if (waitForEvent(threads) < 0) {
 		fprintf(stderr, "cannot wait for event (up)\n");
 		return -1;
 	}
-	/* start jobs */
-	x = pthread_cond_broadcast(&params.cond);
-	if (x != 0) {
-		fprintf(stderr, "cannot init conditional: %d\n", x);
-		return -1;
-	}
+
 	/* wait that threads are ready */
 	m = waitForEvent(0);
 	if (m < 0) {
 		fprintf(stderr, "cannot wait for event (down)\n");
 		return -1;
 	}
+
 	/* destroy threads */
 	destroyThreads(tids, threads);
 
 	/* print benchmark result */
-	fprintf(stdout, "bench %d: waited %ldus\n", threads, m/1000);
+	fprintf(stdout, "test with %d threads: waited %ldus\n",
+	        threads, m/1000);
 
 	/* check for errors during running time */
 	if (params.err != 0) {
@@ -541,13 +557,15 @@ int testrun(int threads) {
 		fprintf(stderr, "%d errors occurred\n", params.err);
 		return -1;
 	}
-	/*
+
+	/* final read */
 	if (readRandom(&params.tree, &params.root, NODESZ-1) != 0) {
 		params_destroy(&params);
 		fprintf(stderr, "final readRandom failed\n");
 		return -1;
 	}
-	*/
+
+	/* cleanup */
 	params_destroy(&params);
 	return 0;
 }
@@ -579,7 +597,7 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 	fprintf(stderr,
-	"benchmarking with %d threads\n", global_threads);
+	"testing with %d threads\n", global_threads);
 
 	srand(time(NULL) ^ (uint64_t)&printf);
 
