@@ -36,6 +36,7 @@ const char *beet_oserrdesc();
 #define BEET_ERR_UNKNKEY  4
 #define BEET_ERR_NORSC    5
 #define BEET_ERR_PANIC    6
+#define BEET_ERR_BADF     7
 
 /* -----------------------------------------------------------------------
  * Errors returned from OS services

@@ -35,7 +35,6 @@ typedef struct beet_tree_st {
 	beet_ins_t       *ins; /* data insertion callback */
 	FILE            *roof; /* root file               */
 	beet_lock_t     rlock; /* root file protection    */
-	char           locked; /* is currently locked     */
 } beet_tree_t;
 
 /* ------------------------------------------------------------------------
@@ -79,8 +78,8 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
  * Get the node that contains the given key
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_get(beet_tree_t  *tree,
-                         beet_pageid_t root,
+beet_err_t beet_tree_get(beet_tree_t   *tree,
+                         beet_pageid_t *root,
                          const void    *key,
                          beet_node_t **node);
 

@@ -194,7 +194,7 @@ int writeOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	return 0;
 }
 
-int readRandom(beet_tree_t *tree, beet_pageid_t root, int hi) {
+int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 	beet_err_t    err;
 	beet_node_t *node;
 	int32_t slot;
@@ -252,8 +252,10 @@ void randomReadOrWrite(params_t *params,
 		x = rand()%2;
 
 		if (x) {
+			/*
 			fprintf(stderr, "%lu writing to %d\n",
 			                 pthread_self(), hi);
+			*/
 			if (writeOneNode(&params->tree,
 			                 &params->root, lo, hi) != 0) {
 				beet_latch_lock(&params->latch);
@@ -262,10 +264,12 @@ void randomReadOrWrite(params_t *params,
 				return;
 			}
 		} else {
+			/*
 			fprintf(stderr, "%lu reading to %d\n",
 			                 pthread_self(), NODESZ-1);
+			*/
 			if (readRandom(&params->tree,
-			               params->root, NODESZ-1) != 0) {
+			               &params->root, NODESZ-1) != 0) {
 				beet_latch_lock(&params->latch);
 				params->err++;
 				beet_latch_unlock(&params->latch);
@@ -432,6 +436,9 @@ int64_t waitForEvent(int event) {
 		nap();
 	}
 	timestamp(&t2);
+	nap();
+	if (event == 0) fprintf(stderr, "ALL THREADS FINISHED\n");
+	else fprintf(stderr, "THREADS RUNNING: %d\n", params.running);
 	return minus(&t2,&t1);
 }
 
@@ -474,7 +481,7 @@ void destroyThreads(pthread_t *tids, int threads) {
 		if (tids[i] == 0) break;
 		x = pthread_join(tids[i], NULL);
 		if (x != 0) {
-			fprintf(stderr, "cannot create pthread: %d\n", x);
+			fprintf(stderr, "cannot join pthread: %d\n", x);
 		}
 		pthread_detach(tids[i]);
 	}
@@ -534,11 +541,13 @@ int testrun(int threads) {
 		fprintf(stderr, "%d errors occurred\n", params.err);
 		return -1;
 	}
-	if (readRandom(&params.tree, params.root, NODESZ-1) != 0) {
+	/*
+	if (readRandom(&params.tree, &params.root, NODESZ-1) != 0) {
 		params_destroy(&params);
 		fprintf(stderr, "final readRandom failed\n");
 		return -1;
 	}
+	*/
 	params_destroy(&params);
 	return 0;
 }

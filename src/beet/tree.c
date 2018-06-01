@@ -318,7 +318,6 @@ beet_err_t beet_tree_init(beet_tree_t     *tree,
 	tree->roof   = roof;
 	tree->cmp    = cmp;
 	tree->ins    = ins;
-	tree->locked = 0;
 
 	/* init root file latch */
 	err = beet_lock_init(&tree->rlock);
@@ -340,7 +339,7 @@ static inline beet_err_t setPrev(beet_tree_t *tree,
 	if (node->next == BEET_PAGE_NULL) return BEET_OK;
 
 	/* load next */
-	 err = getNode(tree, toLeaf(node->next), WRITE, &node2);
+	err = getNode(tree, toLeaf(node->next), WRITE, &node2);
 	if (err != BEET_OK) return err;
 	
 	/* set previous of node.next to node */
@@ -554,10 +553,11 @@ static beet_err_t add2mom(beet_tree_t   *tree,
 		*root = mom->self;
 
 		STOREROOT(root);
-		UNLOCK(WRITE, lock);
 
 		err = storeNode(tree, mom);
 		if (err != BEET_OK) return err;
+
+		UNLOCK(WRITE, lock);
 
 		err = releaseNode(tree, mom); free(mom);
 		return err;
@@ -714,16 +714,17 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
  * Get the node that contains the given key
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_get(beet_tree_t  *tree,
-                         beet_pageid_t root,
-                         const void    *key,
-                         beet_node_t **node) {
+beet_err_t beet_tree_get(beet_tree_t   *tree,
+                         beet_pageid_t *root,
+                         const void     *key,
+                         beet_node_t  **node) {
 	beet_err_t err;
 	beet_node_t *tmp;
 	char lock = 1;
 
 	LOCK(READ);
-	err = getNode(tree, root, READ, &tmp);
+
+	err = getNode(tree, *root, READ, &tmp);
 	if (err != BEET_OK) {
 		UNLOCK(READ, &lock);
 		return err;

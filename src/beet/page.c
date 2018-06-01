@@ -8,6 +8,8 @@
  */
 #include <beet/page.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define PAGENULL() \
 	if (page == NULL) return BEET_ERR_INVALID;
@@ -20,25 +22,34 @@
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz) {
-	ssize_t k;
+	off_t k;
+	int  fd;
 	beet_err_t err;
+
 	PAGENULL();
 	STORENULL();
-	if (fseek(store, 0, SEEK_END) != 0) return BEET_OSERR_SEEK;
-	k = ftell(store); if (k < 0) return BEET_OSERR_TELL;
+
+	fd = fileno(store);
+	if (fd < 0) return BEET_ERR_BADF;
+	if (fsync(fd) != 0) {
+		beet_page_destroy(*page); free(*page);
+		return BEET_OSERR_FLUSH;
+	}
+	k = lseek(fd, 0, SEEK_END);
+	if (k < 0) return BEET_OSERR_SEEK;
 	*page = calloc(1, sizeof(beet_page_t));
 	if (*page == NULL) return BEET_ERR_NOMEM;
 	err = beet_page_init(*page, (uint32_t)sz);
 	if (err != BEET_OK) return err;
-	if (fwrite((*page)->data, sz, 1, store) != 1) {
+	if (write(fd, (*page)->data, sz) != sz) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_WRITE;
 	}
 	if (fflush(store) != 0) {
 		beet_page_destroy(*page); free(*page);
-		return BEET_OSERR_WRITE;
+		return BEET_OSERR_FLUSH;
 	}
-	(*page)->pageid = k/sz;
+	(*page)->pageid = (beet_pageid_t)(k/sz);
 	return BEET_OK;
 }
 
