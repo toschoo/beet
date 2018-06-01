@@ -179,8 +179,8 @@ int initTree(beet_tree_t *tree, char *base,
 	}
 	beet_ins_setPlain(ins);
 	
-	if (initRider(nlfs, base, name1) != 0) return -1;
-	if (initRider(lfs, base, name2) != 0) return -1;
+	if (initRider(lfs, base, name1) != 0) return -1;
+	if (initRider(nlfs, base, name2) != 0) return -1;
 
 	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, DATASZ,
 	                             nlfs, lfs, roof, &cmp, ins);
