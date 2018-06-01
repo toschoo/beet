@@ -25,27 +25,35 @@ beet_err_t beet_page_alloc(beet_page_t **page,
                            FILE *store, off_t pos,
                            uint32_t sz) {
 	off_t k;
-	int  fd;
+	// int  fd;
 	beet_err_t err;
 
 	PAGENULL();
 	STORENULL();
 
+	k = pos/sz;
+	if (k < 0) return BEET_OSERR_SEEK;
+	/*
 	fd = fileno(store);
 	if (fd < 0) return BEET_ERR_BADF;
+	*/
 	/*
 	if (fsync(fd) != 0) {
-		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_FLUSH;
 	}
 	*/
-	k = lseek(fd, pos, SEEK_SET);
-	if (k < 0) return BEET_OSERR_SEEK;
+	// k = lseek(fd, pos, SEEK_SET);
+	if (fseek(store, pos, SEEK_SET) != 0) {
+		return BEET_OSERR_SEEK;
+	}
+	/*
+	fprintf(stderr, "new page at %d.%lu: %lu\n", fileno(store), pos, k);
+	*/
 	*page = calloc(1, sizeof(beet_page_t));
 	if (*page == NULL) return BEET_ERR_NOMEM;
 	err = beet_page_init(*page, (uint32_t)sz);
 	if (err != BEET_OK) return err;
-	if (write(fd, (*page)->data, sz) != sz) {
+	if (fwrite((*page)->data, sz, 1, store) != 1) {
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_WRITE;
 	}
@@ -59,7 +67,7 @@ beet_err_t beet_page_alloc(beet_page_t **page,
 		beet_page_destroy(*page); free(*page);
 		return BEET_OSERR_FLUSH;
 	}
-	(*page)->pageid = (beet_pageid_t)(k/sz);
+	(*page)->pageid = (beet_pageid_t)k; // (beet_pageid_t)(k/sz);
 	return BEET_OK;
 }
 

@@ -414,6 +414,7 @@ void *task(void *p) {
 		errmsg(err, "cannot unlock latch\n");
 		return NULL;
 	}
+	// fprintf(stderr, "%lu is leaving\n", pthread_self());
 	return NULL;
 }
 
@@ -425,9 +426,11 @@ int64_t waitForEvent(int event) {
 	struct timespec t1, t2;
 	beet_err_t err;
 	int count;
+	int max = 60000;
+	int i;
 
 	timestamp(&t1);
-	for(;;) {
+	for(i=0;i<max;i++) {
 		err = beet_latch_lock(&params.latch);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot lock");
@@ -443,6 +446,7 @@ int64_t waitForEvent(int event) {
 		nap();
 	}
 	timestamp(&t2);
+	if (i == max) return -1;
 	if (event == 0) fprintf(stderr, "ALL THREADS FINISHED\n");
 	else fprintf(stderr, "THREADS RUNNING: %d\n", params.running);
 	nap();
@@ -527,6 +531,7 @@ int testrun(int threads) {
 		return -1;
 	}
 	/* wait for all threads running */
+	fprintf(stderr, "waiting for threads to start\n");
 	if (waitForEvent(threads) < 0) {
 		fprintf(stderr, "cannot wait for event (up)\n");
 		return -1;
@@ -540,6 +545,7 @@ int testrun(int threads) {
 	}
 
 	/* wait that threads are ready */
+	fprintf(stderr, "waiting for threads to finish\n");
 	m = waitForEvent(0);
 	if (m < 0) {
 		fprintf(stderr, "cannot wait for event (down)\n");
