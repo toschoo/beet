@@ -234,6 +234,7 @@ int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 		slot = beet_node_search(node, KEYSZ, &k, &cmp);
 		if (slot < 0) {
 			fprintf(stderr, "unexpected result: %d\n", k);
+			beet_tree_release(tree, node); free(node);
 			return -1;
 		}
 		if (!beet_node_equal(node, slot, KEYSZ, &k, &cmp)) {
@@ -242,6 +243,7 @@ int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 			pthread_self(), k, node->self,
 			(*(int*)node->keys),
 			(*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
+			beet_tree_release(tree, node); free(node);
 			return -1;
 		}
 		// fprintf(stderr, "found: %d in %d\n", k, slot);
@@ -250,12 +252,14 @@ int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 			fprintf(stderr, "key and data differ: %d - %d\n",
 				(*(int*)(node->keys+slot*KEYSZ)),
 				(*(int*)(node->kids+slot*KEYSZ)));
+			beet_tree_release(tree, node); free(node);
 			return -1;
 		}
 
 		err = beet_tree_release(tree, node);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot release node");
+			free(node);
 			return -1;
 		}
 		free(node);

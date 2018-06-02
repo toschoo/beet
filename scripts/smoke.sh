@@ -42,4 +42,32 @@ then
 	exit 1
 fi
 
+test/smoke/contreesmoke -threads 1 >> log/test.log 2>&1
+if [ $? -ne 0 ]
+then
+	echo "FAILED: contreesmoke failed with 1 thread"
+	exit 1
+fi
+
+test/smoke/contreesmoke -threads 2 >> log/test.log 2>&1
+if [ $? -ne 0 ]
+then
+	echo "FAILED: contreesmoke failed with 2 thread"
+	exit 1
+fi
+
+test/smoke/contreesmoke -threads 10 >> log/test.log 2>&1
+if [ $? -ne 0 ]
+then
+	echo "FAILED: contreesmoke failed with 10 threads"
+	exit 1
+fi
+
+test/smoke/contreesmoke -threads 100 >> log/test.log 2>&1
+if [ $? -ne 0 ]
+then
+	echo "FAILED: contreesmoke failed with 100 threads"
+	exit 1
+fi
+
 echo "PASSED"

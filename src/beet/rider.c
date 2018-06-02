@@ -77,22 +77,22 @@ static void destroyNode(beet_rider_node_t *node) {
  * ------------------------------------------------------------------------
  */
 #define UNLOCK() \
-	err = beet_latch_unlock(&rider->latch); \
-	if (err != BEET_OK) return err;
+	err2 = beet_latch_unlock(&rider->latch); \
+	if (err2 != BEET_OK) return err2;
 
 /* ------------------------------------------------------------------------
  * MACRO: rider not null
  * ------------------------------------------------------------------------
  */
 #define RIDERNULL() \
-	if (rider == NULL) return BEET_ERR_INVALID;
+	if (rider == NULL) return BEET_ERR_NORIDER;
 
 /* ------------------------------------------------------------------------
  * MACRO: page not null
  * ------------------------------------------------------------------------
  */
 #define PAGENULL() \
-	if (page == NULL) return BEET_ERR_INVALID;
+	if (page == NULL) return BEET_ERR_NOPAGE;
 
 /* ------------------------------------------------------------------------
  * tree callbacks
@@ -166,7 +166,7 @@ beet_err_t beet_rider_init(beet_rider_t    *rider,
 	size_t s;
 	
 	RIDERNULL();
-	if (base == NULL || name == NULL) return BEET_ERR_INVALID;
+	if (base == NULL || name == NULL) return BEET_ERR_NONAME;
 
 	rider->max = max;
 	rider->pagesz = pagesz;
@@ -191,7 +191,7 @@ beet_err_t beet_rider_init(beet_rider_t    *rider,
 
 	s = strnlen(base, 4097);
 	if (s >= 4096) {
-		err = BEET_ERR_INVALID;
+		err = BEET_ERR_TOOBIG;
 		goto cleanup;
 	}
 
@@ -203,13 +203,13 @@ beet_err_t beet_rider_init(beet_rider_t    *rider,
 
 	s = strnlen(name, 4097);
 	if (s >= 4096) {
-		err = BEET_ERR_INVALID;
+		err = BEET_ERR_TOOBIG;
 		goto cleanup;
 	}
 
 	rider->name = strdup(name);
 	if (rider->name == NULL) {
-		err = BEET_ERR_INVALID;
+		err = BEET_ERR_NOMEM;
 		goto cleanup;
 	}
 
@@ -287,6 +287,7 @@ static beet_err_t getpage(beet_rider_t *rider,
                           char          x,
                           beet_page_t **page) {
 	beet_err_t err = BEET_OK;
+	beet_err_t err2;
 	beet_rider_node_t *node=NULL;
 	beet_rider_node_t pattern;
 
@@ -366,12 +367,13 @@ static beet_err_t releasepage(beet_rider_t *rider,
                               beet_pageid_t pageid,
                               char          x) {
 	beet_err_t err;
+	beet_err_t err2;
 	beet_rider_node_t pattern;
 	beet_rider_node_t *node;
 
-	pattern.pageid = pageid;
 	LOCK();
 	
+	pattern.pageid = pageid;
 	node = ts_algo_tree_find(rider->tree, &pattern);
 	if (node == NULL) {
 		UNLOCK();

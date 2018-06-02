@@ -20,9 +20,42 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_ERR_INVALID:  return "invalid parameter";
 	case BEET_ERR_UNKNKEY:  return "key not found";
 	case BEET_ERR_NORSC:  return "resource is busy; try again";
-	case BEET_ERR_PANIC:  return "PANIC! This is a bug!";
 	case BEET_ERR_BADF:  return "bad file";
 	case BEET_ERR_NOFILE: return "file does not exist";
+	case BEET_ERR_NOTREE:
+		return "tree parameter is NULL";
+	case BEET_ERR_NONODE:
+		return "node parameter is NULL";
+	case BEET_ERR_NOPAGE:
+		return "page parameter is NULL";
+	case BEET_ERR_NORIDER:
+		return "rider parameter is NULL";
+	case BEET_ERR_NOFD:
+		return "file parameter is NULL";
+	case BEET_ERR_NOSLOT:
+		return "key not found in node";
+	case BEET_ERR_NOKEY:
+		return "key parameter is null";
+	case BEET_ERR_NOROOT:
+		return "root parameter is null";
+	case BEET_ERR_BADSIZE:
+		return "bad node size (tree is inconsistent)";
+	case BEET_ERR_BADNODE:
+		return "bad node (tree is inconsistent)";
+	case BEET_ERR_BADPAGE:
+		return "bad page (tree is inconsistent)";
+	case BEET_ERR_NONAME:
+		return "no file name or path given";
+	case BEET_ERR_TOOBIG:
+		return "file name or path too long";
+	case BEET_ERR_NOLATCH:
+		return "latch parameter is NULL (this is a bug!)";
+	case BEET_ERR_NOLOCK:
+		return "lock parameter is NULL (this is a bug!)";
+	case BEET_ERR_TEST:
+		return "this is an injected error!";
+	case BEET_ERR_PANIC:
+		return "PANIC! This is a bug!";
 
 	case BEET_OSERR_BUSY: return "resource is busy";
 	case BEET_OSERR_NOMEM: return "out of memory";
@@ -44,4 +77,3 @@ const char *beet_errdesc(beet_err_t err) {
 	default: return "unknown error";
 	}
 }
-
