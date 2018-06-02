@@ -32,10 +32,10 @@ static inline beet_err_t geterr(int x) {
 }
 
 #define LATCHNULL() \
-	if (latch == NULL) return BEET_ERR_INVALID;
+	if (latch == NULL) return BEET_ERR_NOLATCH;
 
 #define LOCKNULL() \
-	if (lock == NULL) return BEET_ERR_INVALID;
+	if (lock == NULL) return BEET_ERR_NOLOCK;
 
 #define PTHREADERR(x) \
 	if (x != 0) return geterr(x);

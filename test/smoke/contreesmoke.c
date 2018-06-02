@@ -234,6 +234,7 @@ int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 		slot = beet_node_search(node, KEYSZ, &k, &cmp);
 		if (slot < 0) {
 			fprintf(stderr, "unexpected result: %d\n", k);
+			beet_tree_release(tree, node); free(node);
 			return -1;
 		}
 		if (!beet_node_equal(node, slot, KEYSZ, &k, &cmp)) {
@@ -242,6 +243,7 @@ int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 			pthread_self(), k, node->self,
 			(*(int*)node->keys),
 			(*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
+			beet_tree_release(tree, node); free(node);
 			return -1;
 		}
 		// fprintf(stderr, "found: %d in %d\n", k, slot);
@@ -250,12 +252,14 @@ int readRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 			fprintf(stderr, "key and data differ: %d - %d\n",
 				(*(int*)(node->keys+slot*KEYSZ)),
 				(*(int*)(node->kids+slot*KEYSZ)));
+			beet_tree_release(tree, node); free(node);
 			return -1;
 		}
 
 		err = beet_tree_release(tree, node);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot release node");
+			free(node);
 			return -1;
 		}
 		free(node);
@@ -414,6 +418,7 @@ void *task(void *p) {
 		errmsg(err, "cannot unlock latch\n");
 		return NULL;
 	}
+	// fprintf(stderr, "%lu is leaving\n", pthread_self());
 	return NULL;
 }
 
@@ -425,9 +430,11 @@ int64_t waitForEvent(int event) {
 	struct timespec t1, t2;
 	beet_err_t err;
 	int count;
+	int max = 60000;
+	int i;
 
 	timestamp(&t1);
-	for(;;) {
+	for(i=0;i<max;i++) {
 		err = beet_latch_lock(&params.latch);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot lock");
@@ -443,6 +450,7 @@ int64_t waitForEvent(int event) {
 		nap();
 	}
 	timestamp(&t2);
+	if (i == max) return -1;
 	if (event == 0) fprintf(stderr, "ALL THREADS FINISHED\n");
 	else fprintf(stderr, "THREADS RUNNING: %d\n", params.running);
 	nap();
@@ -475,6 +483,7 @@ int initThreads(pthread_t **tids, int threads) {
 			return -1;
 		}
 	}
+	nap();
 	return 0;
 }
 
@@ -525,19 +534,22 @@ int testrun(int threads) {
 		fprintf(stderr, "cannot init threads\n");
 		return -1;
 	}
+	/* wait for all threads running */
+	fprintf(stderr, "waiting for threads to start\n");
+	if (waitForEvent(threads) < 0) {
+		fprintf(stderr, "cannot wait for event (up)\n");
+		return -1;
+	}
+
 	/* let threads run */
 	err = beet_latch_unlock(&params.stopper);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot unlock stopper");
 		return -1;
 	}
-	/* wait for all threads running */
-	if (waitForEvent(threads) < 0) {
-		fprintf(stderr, "cannot wait for event (up)\n");
-		return -1;
-	}
 
 	/* wait that threads are ready */
+	fprintf(stderr, "waiting for threads to finish\n");
 	m = waitForEvent(0);
 	if (m < 0) {
 		fprintf(stderr, "cannot wait for event (down)\n");

@@ -289,12 +289,12 @@ beet_err_t beet_node_add(beet_node_t     *node,
 
 	*wrote = 0;
 
-	if (node->size >= nsize) return BEET_ERR_INVALID;
+	if (node->size >= nsize) return BEET_ERR_BADSIZE;
 
 	/* find slot */
 	int32_t slot = binsearch(node->keys, (void*)key, ksize,
 	                             0, node->size, 2, cmp, 1);
-	if (slot < 0) return BEET_ERR_INVALID;
+	if (slot < 0) return BEET_ERR_NOSLOT;
 
 	/* if we already have that node: add the data */
 	if (slot < node->size && beet_node_equal(node,slot,ksize,key,cmp)) {
@@ -357,4 +357,3 @@ char beet_node_equal(beet_node_t *node,
 	return (cmp(NULL,(void*)key,node->keys+slot*keysz) ==
 	                                ts_algo_cmp_equal);
 }
-

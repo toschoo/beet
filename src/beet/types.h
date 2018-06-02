@@ -35,8 +35,25 @@ const char *beet_oserrdesc();
 #define BEET_ERR_INVALID  3
 #define BEET_ERR_UNKNKEY  4
 #define BEET_ERR_NORSC    5
-#define BEET_ERR_PANIC    6
-#define BEET_ERR_BADF     7
+#define BEET_ERR_BADF     6
+#define BEET_ERR_NOFILE   7
+#define BEET_ERR_NOTREE   8
+#define BEET_ERR_NONODE   9
+#define BEET_ERR_NOPAGE  10
+#define BEET_ERR_NORIDER 11
+#define BEET_ERR_NOFD    12
+#define BEET_ERR_NOKEY   13
+#define BEET_ERR_NOROOT  14
+#define BEET_ERR_NOSLOT  15
+#define BEET_ERR_BADSIZE 16
+#define BEET_ERR_BADNODE 17
+#define BEET_ERR_BADPAGE 18
+#define BEET_ERR_NONAME  19
+#define BEET_ERR_TOOBIG  20
+#define BEET_ERR_NOLATCH 21
+#define BEET_ERR_NOLOCK  22
+#define BEET_ERR_TEST   199
+#define BEET_ERR_PANIC  999
 
 /* -----------------------------------------------------------------------
  * Errors returned from OS services

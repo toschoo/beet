@@ -36,7 +36,10 @@ typedef struct {
  * Allocate a new page in a file
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz);
+beet_err_t beet_page_alloc(beet_page_t **page,
+                           FILE        *store,
+                           off_t          pos,
+                           uint32_t       sz);
 
 /* ------------------------------------------------------------------------
  * Initialise an already allocated page in a file
