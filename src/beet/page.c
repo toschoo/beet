@@ -113,10 +113,14 @@ beet_err_t beet_page_load(beet_page_t *page, FILE *store) {
 	STORENULL();
 	// if (fsync(fileno(store)) != 0) return BEET_OSERR_FLUSH;
 	s = (size_t)page->pageid * (size_t)page->sz;
+	int fd = fileno(store);
+	if (pread(fd, page->data, page->sz, s) != page->sz) return BEET_OSERR_READ;
+	/*
 	if (fseek(store, s, SEEK_SET) != 0) return BEET_OSERR_SEEK;
 	if (fread(page->data, page->sz, 1, store) != 1) {
 		return BEET_OSERR_READ;
 	}
+	*/
 	return BEET_OK;
 }
 
@@ -129,10 +133,15 @@ beet_err_t beet_page_store(beet_page_t *page, FILE *store) {
 	PAGENULL();
 	STORENULL();
 	s = (size_t)page->pageid * (size_t)page->sz;
+	int fd = fileno(store);
+	// if (lseek(fd, s, SEEK_SET) != 0) return BEET_OSERR_SEEK;
+	if (pwrite(fd, page->data, page->sz, s) != page->sz) return BEET_OSERR_WRITE;
+	/*
 	if (fseek(store, s, SEEK_SET) != 0) return BEET_OSERR_SEEK;
 	if (fwrite(page->data, page->sz, 1, store) != 1) {
 		return BEET_OSERR_WRITE;
 	}
 	if (fflush(store) != 0) return BEET_OSERR_FLUSH;
+	*/
 	return BEET_OK;
 }
