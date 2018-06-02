@@ -111,6 +111,7 @@ beet_err_t beet_page_load(beet_page_t *page, FILE *store) {
 	size_t s;
 	PAGENULL();
 	STORENULL();
+	// if (fsync(fileno(store)) != 0) return BEET_OSERR_FLUSH;
 	s = (size_t)page->pageid * (size_t)page->sz;
 	if (fseek(store, s, SEEK_SET) != 0) return BEET_OSERR_SEEK;
 	if (fread(page->data, page->sz, 1, store) != 1) {

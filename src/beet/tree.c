@@ -252,7 +252,11 @@ static inline beet_err_t storeNode(beet_tree_t *tree,
 static inline beet_err_t releaseNode(beet_tree_t *tree,
                                      beet_node_t *node) {
 	beet_err_t err;
-	beet_rider_t *rd = node->leaf ? tree->lfs : tree->nolfs;
+	beet_rider_t *rd;
+       
+	if (node == NULL) return BEET_OK;
+
+	rd = node->leaf ? tree->lfs : tree->nolfs;
 
 	if (node->mode == READ) {
 		err = beet_rider_releaseRead(rd, node->page);
@@ -593,8 +597,9 @@ static inline beet_err_t unlockAll(beet_tree_t *tree,
 	runner=nodes->head;
 	while(runner != NULL) {
 		node = runner->cont;
-		err = releaseNode(tree, node); free(node);
+		err = releaseNode(tree, node);
 		if (err != BEET_OK) return err;
+		free(node);
 		tmp = runner->nxt;
 		ts_algo_list_remove(nodes, runner);
 		free(runner); runner = tmp;
@@ -633,7 +638,9 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	/* search pointer to next node */
 	pge = beet_node_searchPageid(src, tree->ksize, key, tree->cmp);
 	if (pge == BEET_PAGE_NULL) {
-		releaseNode(tree, src); free(src);
+		if (mode == READ) {
+			releaseNode(tree, src); free(src);
+		}
 		return BEET_ERR_PANIC;
 	}
 
@@ -646,7 +653,9 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	 * before we actually reach the our target */
 	err = getNode(tree, pge, mode, trg);
 	if (err != BEET_OK) {
-		releaseNode(tree, src); free(src);
+		if (mode == READ) {
+			releaseNode(tree, src); free(src);
+		}
 		return err;
 	}
 
@@ -655,7 +664,9 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	if (mode == WRITE && isBarrier(tree, *trg)) {
 		err = unlockAll(tree, lock, nodes);
 		if (err != BEET_OK) {
-			releaseNode(tree, src); free(src);
+			if (mode == READ) {
+				releaseNode(tree, src); free(src);
+			}
 			return err;
 		}
 
@@ -706,15 +717,22 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 
 	err = findNode(tree, node, &leaf, WRITE, key, &lock, &nodes);	
 	if (err != BEET_OK) {
-		UNLOCK(WRITE, &lock);
+		unlockAll(tree, &lock, &nodes);
 		return err;
 	}
 
 	err = insert(tree, root, leaf, key, data, &lock, nodes.head);
-	if (err != BEET_OK) return err;
+	if (err != BEET_OK) {
+		releaseNode(tree, leaf); free(leaf);
+		unlockAll(tree, &lock, &nodes);
+		return err;
+	}
 	
 	err = releaseNode(tree, leaf); free(leaf);
-	if (err != BEET_OK) return err;
+	if (err != BEET_OK) {
+		unlockAll(tree, &lock, &nodes);
+		return err;
+	}
 
 	err = unlockAll(tree, &lock, &nodes);
 	if (err != BEET_OK) return err;
