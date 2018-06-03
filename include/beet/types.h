@@ -1,7 +1,24 @@
 /* ========================================================================
  * (c) Tobias Schoofs, 2018
+ * 
+ * This file is part of the BEET Library.
+ *
+ * The BEET Library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * The BEET Library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with the BEET Library; if not, see
+ * <http://www.gnu.org/licenses/>.
+ *  
  * ========================================================================
- * Base Types
+ * BEET Base Types
  * ========================================================================
  */
 #ifndef beet_types_decl
@@ -72,6 +89,7 @@ const char *beet_oserrdesc();
  * -----------------------------------------------------------------------
  */
 #define BEET_OSERR_ERRNO -100
+
 #define BEET_OSERR_SEEK  -101
 #define BEET_OSERR_TELL  -102
 #define BEET_OSERR_OPEN  -103

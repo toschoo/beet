@@ -37,14 +37,17 @@ OBJ = $(SRC)/lock.o  \
       $(SRC)/rider.o \
       $(SRC)/ins.o   \
       $(SRC)/node.o  \
-      $(SRC)/tree.o
+      $(SRC)/tree.o  \
+      $(SRC)/beet.o
 
-DEP = $(SRC)/lock.h  \
+DEP = $(HDR)/types.h \
+      $(SRC)/lock.h  \
       $(SRC)/page.h  \
       $(SRC)/rider.h \
       $(SRC)/node.h  \
       $(SRC)/ins.h   \
-      $(SRC)/tree.h
+      $(SRC)/tree.h  \
+      $(HDR)/beet.h
 
 default:	lib 
 
