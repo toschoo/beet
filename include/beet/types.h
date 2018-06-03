@@ -69,6 +69,10 @@ const char *beet_oserrdesc();
 #define BEET_ERR_TOOBIG  20
 #define BEET_ERR_NOLATCH 21
 #define BEET_ERR_NOLOCK  22
+#define BEET_ERR_NOMAGIC 23
+#define BEET_ERR_NOVER   24
+#define BEET_ERR_UNKNVER 25
+#define BEET_ERR_BADCFG  26
 #define BEET_ERR_TEST   199
 #define BEET_ERR_PANIC  999
 
@@ -98,6 +102,8 @@ const char *beet_oserrdesc();
 #define BEET_OSERR_WRITE -106
 #define BEET_OSERR_FLUSH -107
 #define BEET_OSERR_SLEEP -108
+#define BEET_OSERR_MKDIR -109
+#define BEET_OSERR_REMOV -110
 
 #define BEET_OSERR_UNKN  -9999
 

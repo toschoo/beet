@@ -62,7 +62,8 @@ smoke:	$(SMK)/pagesmoke     \
 	$(SMK)/nodesmoke     \
 	$(SMK)/treesmoke     \
 	$(SMK)/embeddedsmoke \
-	$(SMK)/contreesmoke 
+	$(SMK)/contreesmoke  \
+	$(SMK)/indexsmoke
 
 stress: $(STRS)/riderstress
 
@@ -154,6 +155,13 @@ $(SMK)/contreesmoke:	lib $(SMK)/contreesmoke.o $(COM)/cmd.o \
 			                    $(COM)/bench.o    \
 			                    $(libs) -lbeet
 
+$(SMK)/indexsmoke:	lib $(SMK)/indexsmoke.o $(COM)/math.o 
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/indexsmoke   \
+			                    $(SMK)/indexsmoke.o \
+			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
 			$(LNKMSG)
@@ -182,6 +190,7 @@ clean:
 	rm -f $(RSC)/*.noleaf
 	rm -f $(RSC)/roof
 	rm -f $(RSC)/config
+	rm -rf $(RSC)/idx??
 	rm -rf $(RSC)/emb
 	rm -f $(SMK)/pagesmoke
 	rm -f $(SMK)/ridersmoke
@@ -189,6 +198,7 @@ clean:
 	rm -f $(SMK)/treesmoke
 	rm -f $(SMK)/embeddedsmoke
 	rm -f $(SMK)/contreesmoke
+	rm -f $(SMK)/indexsmoke
 	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 

@@ -52,6 +52,14 @@ const char *beet_errdesc(beet_err_t err) {
 		return "latch parameter is NULL (this is a bug!)";
 	case BEET_ERR_NOLOCK:
 		return "lock parameter is NULL (this is a bug!)";
+	case BEET_ERR_NOMAGIC:
+		return "invalid config file: magic number wrong";
+	case BEET_ERR_NOVER:
+		return "invalid config file: no version";
+	case BEET_ERR_UNKNVER:
+		return "invalid config file: unknown version";
+	case BEET_ERR_BADCFG:
+		return "bad config file";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:
@@ -73,6 +81,8 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_OSERR_WRITE: return "write error (see errno)";
 	case BEET_OSERR_FLUSH: return "flush error (see errno)";
 	case BEET_OSERR_SLEEP: return "nanosleep error (see errno)";
+	case BEET_OSERR_MKDIR: return "mkdir error (see errno)";
+	case BEET_OSERR_REMOV: return "remove error (see errno)";
 
 	default: return "unknown error";
 	}

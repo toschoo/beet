@@ -40,11 +40,11 @@ typedef struct {
 	uint32_t intPageSize;   /* page size of internal nodes      */
 	uint32_t leafNodeSize;  /* number of keys in leaf nodes     */
 	uint32_t intNodeSize;   /* number of keys in internal nodes */
+	uint32_t keySize;       /* size of one key                  */
+	uint32_t dataSize;      /* data size                        */
+	char    *subPath;       /* path to the embedded index       */
 	int32_t  leafCacheSize; /* cache size for leaf nodes        */
 	int32_t  intCacheSize;  /* cache size for internal nodes    */
-	uint32_t KeySize;       /* size of one key                  */
-	uint32_t DataSize;      /* data size                        */
-	char    *subpath;       /* path to the embedded index       */
 	char    *compare;       /* name of compare function         */
 } beet_config_t;
 
@@ -60,6 +60,24 @@ typedef struct {
 #define BEET_INDEX_NULL  1
 #define BEET_INDEX_PLAIN 2
 #define BEET_INDEX_HOST  3
+
+/* ------------------------------------------------------------------------
+ * Cache Size
+ * ------------------------------------------------------------------------
+ */
+#define BEET_CACHE_UNLIMITED 0
+#define BEET_CACHE_DEFAULT  -1
+#define BEET_CACHE_IGNORE   -2
+
+/* ------------------------------------------------------------------------
+ * Light Config
+ * ------------------------------------------------------------------------
+ */
+typedef struct {
+	int32_t  leafCacheSize; /* cache size for leaf nodes        */
+	int32_t  intCacheSize;  /* cache size for internal nodes    */
+	char    *compare;       /* name of compare function         */
+} beet_open_config_t;
 
 /* ------------------------------------------------------------------------
  * The BEET Index
@@ -81,7 +99,9 @@ typedef char (*beet_compare_t)(const void*, const void*);
  * Create an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_create(char *path, beet_config_t *cfg);
+beet_err_t beet_index_create(char *path,
+                             char standalone,
+                             beet_config_t *cfg);
 
 /* ------------------------------------------------------------------------
  * Remove an index physically from disk
@@ -94,8 +114,8 @@ beet_err_t beet_index_drop(char *path);
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_open(char *path, void *handle,
-                                 beet_compare_t cmp,
-                                 beet_index_t  *idx);
+                           beet_open_config_t  *cfg,
+                           beet_index_t       *idx);
 
 /* ------------------------------------------------------------------------
  * Close an index
