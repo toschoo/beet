@@ -4,6 +4,17 @@
  * File Rider
  * ========================================================================
  * A cached File consisting of fix-sized pages
+ * TODO:
+ * - for delete, we will need a free-list
+ *   which contains empty nodes. Instead of always allocating a new page,
+ *   when a new node is needed, we will first consult free-list. 
+ * - for compression, we will need one more layer: storage blocks.
+ *   Those blocks would contain compressed pages (or parts thereof).
+ *   As part of its definition, a page would contain a reference to the
+ *   block that stores the first part of the page.
+ *   The issue is that, with each change to a node,
+ *   the compression size changes. We therefore need to be flexible
+ *   about where to put the page data.
  * ========================================================================
  */
 #ifndef beet_rider_decl

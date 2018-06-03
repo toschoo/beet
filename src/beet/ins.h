@@ -89,6 +89,7 @@ beet_err_t beet_ins_plain(void *ignore, uint32_t sz, void* trg,
 void beet_ins_plainclean(void *ignore);
 void beet_ins_plaininit(void *ignore, uint32_t n, void *kids);
 void beet_ins_plainclear(void *ignore, void *kids);
+
 beet_err_t beet_ins_setPlain(beet_ins_t *ins);
 
 /* -------------------------------------------------------------------------
@@ -100,6 +101,7 @@ beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void* root,
 void beet_ins_embeddedclean(void *ins);
 void beet_ins_embeddedinit(void *ignore, uint32_t n, void *kids);
 void beet_ins_embeddedclear(void *ignore, void *kids);
+
 beet_err_t beet_ins_setEmbedded(beet_ins_t *ins, void *subtree);
 
 #endif
