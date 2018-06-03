@@ -481,6 +481,7 @@ static beet_err_t insert(beet_tree_t   *tree,
                          beet_node_t   *node,
                          const void     *key,
                          const void    *data,
+                         char           upd,
                          char          *lock,
                  ts_algo_list_node_t  *nodes) 
 {
@@ -492,10 +493,10 @@ static beet_err_t insert(beet_tree_t   *tree,
 	err = beet_node_add(node, tree->nsize,
 			          tree->ksize,
 			          tree->dsize,
-			            key, data,        
+			          key, data,        
 			          tree->cmp,
 			          tree->ins,
-	                          &wrote);
+                                  upd, &wrote);
 	if (err != BEET_OK) return err;
 	if (wrote) {
 		err = storeNode(tree, node);
@@ -601,7 +602,7 @@ static beet_err_t add2mom(beet_tree_t   *tree,
 	 * into the next node in the list,
 	 * the splitter (key) and the nodeid
 	 * of the new node */
-	return insert(tree, root, nodes->cont, key, &p2, lock, nodes->nxt);
+	return insert(tree, root, nodes->cont, key, &p2, 0, lock, nodes->nxt);
 }
 
 /* ------------------------------------------------------------------------
@@ -717,20 +718,20 @@ static beet_err_t findNode(beet_tree_t     *tree,
 }
 
 /* ------------------------------------------------------------------------
- * Insert data into the tree
- * TODO: check resource handling in case of error!
+ * Helper: insert or upsert data into the tree
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_insert(beet_tree_t   *tree,
-                            beet_pageid_t *root,
-                            const void     *key,
-                            const void    *data) {
+static inline beet_err_t insorupsert(beet_tree_t   *tree,
+                                     beet_pageid_t *root,
+                                     const void     *key,
+                                     const void    *data,
+                                     char            upd) {
 	beet_err_t err;
 	beet_err_t err2; /* for LOCK and UNLOCK */
 	ts_algo_list_t nodes;
 	beet_node_t *node, *leaf;
-	char lock = 1; /* controls whether we have
-	                  currently locked the root pointer */
+	char lock = 1; /* root poiner is locked */
+
 	TREENULL();
 	ROOTNULL();
 
@@ -752,7 +753,7 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 		return err;
 	}
 
-	err = insert(tree, root, leaf, key, data, &lock, nodes.head);
+	err = insert(tree, root, leaf, key, data, upd, &lock, nodes.head);
 	if (err != BEET_OK) {
 		releaseNode(tree, leaf); free(leaf);
 		unlockAll(tree, &lock, &nodes);
@@ -769,6 +770,28 @@ beet_err_t beet_tree_insert(beet_tree_t   *tree,
 	if (err != BEET_OK) return err;
 	
 	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Insert data into the tree without update if the key already exists
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_insert(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key,
+                            const void    *data) {
+	return insorupsert(tree, root, key, data, 0);
+}
+
+/* ------------------------------------------------------------------------
+ * Insert data into the tree updating if the key already exists
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_upsert(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key,
+                            const void    *data) {
+	return insorupsert(tree, root, key, data, 1);
 }
 
 /* ------------------------------------------------------------------------

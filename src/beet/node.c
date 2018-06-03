@@ -110,9 +110,11 @@ static inline beet_err_t ad3ata(beet_node_t *node,
                                 uint32_t    dsize,
                                 uint32_t     slot,
                                 const void  *data,
+                                char          upd,
                                 beet_ins_t   *ins) {
 	if (ins == NULL) return BEET_OK;
-	return ins->inserter(ins->rsc, dsize, node->kids+slot*dsize, data);
+	return ins->inserter(ins->rsc, upd, dsize,
+	             node->kids+slot*dsize, data);
 }
 
 /* ------------------------------------------------------------------------
@@ -159,7 +161,7 @@ static inline beet_err_t add2slot(beet_node_t *node,
 		if (ins != NULL) {
 			ins->clear(ins->rsc, node->kids+slot*dsize);
 		}
-		ad3ata(node, dsize, slot, data, ins);
+		ad3ata(node, dsize, slot, data, 1, ins);
 	
 	/* in a nonleaf we copy the new key to the right of 'slot' */
 	} else {
@@ -283,6 +285,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
                          const void      *data,
                          ts_algo_comprsc_t cmp,
                          beet_ins_t       *ins,
+                         char              upd,
                          char           *wrote) 
 {
 	beet_err_t err;
@@ -296,11 +299,11 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	                             0, node->size, 2, cmp, 1);
 	if (slot < 0) return BEET_ERR_NOSLOT;
 
-	/* if we already have that node: add the data */
+	/* if we already have that key: add the data */
 	if (slot < node->size && beet_node_equal(node,slot,ksize,key,cmp)) {
 		if (node->leaf) {
 			*wrote = 1;
-			return ad3ata(node, dsize, slot, data, ins);
+			return ad3ata(node, dsize, slot, data, upd, ins);
 		}
 		return BEET_OK;
 	}

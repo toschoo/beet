@@ -23,12 +23,14 @@
  * Generic insert callback
  * -----------------------
  * Parameters: 1) resource ("closure")
- *             2) data size
- *             3) position in the tree
- *             4) data to add
+ *             2) write data
+ *             3) data size
+ *             4) position in the tree
+ *             5) data to add
  * -------------------------------------------------------------------------
  */
-typedef beet_err_t (*beet_insert_t)(void*, uint32_t sz, void*, const void*); 
+typedef beet_err_t (*beet_insert_t)(void*, char, uint32_t sz,
+                                         void*, const void*);
 
 /* -------------------------------------------------------------------------
  * Generic insert cleanup callback
@@ -84,8 +86,8 @@ typedef struct {
  * Plain inserter
  * -------------------------------------------------------------------------
  */
-beet_err_t beet_ins_plain(void *ignore, uint32_t sz, void* trg,
-                                             const void *data);
+beet_err_t beet_ins_plain(void *ignore, char upd, uint32_t sz, void* trg,
+                                                       const void *data);
 void beet_ins_plainclean(void *ignore);
 void beet_ins_plaininit(void *ignore, uint32_t n, void *kids);
 void beet_ins_plainclear(void *ignore, void *kids);
@@ -96,8 +98,8 @@ beet_err_t beet_ins_setPlain(beet_ins_t *ins);
  * Embedded inserter
  * -------------------------------------------------------------------------
  */
-beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void* root,
-                                               const void *data);
+beet_err_t beet_ins_embedded(void *tree, char upd, uint32_t sz, void* root,
+                                                         const void *data);
 void beet_ins_embeddedclean(void *ins);
 void beet_ins_embeddedinit(void *ignore, uint32_t n, void *kids);
 void beet_ins_embeddedclear(void *ignore, void *kids);

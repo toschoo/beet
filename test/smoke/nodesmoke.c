@@ -87,7 +87,7 @@ int testWriteNums(beet_rider_t *rider) {
 
 	for(int z=NODESZ-1;z>=0;z--) {
 		err = beet_node_add(&node, NODESZ, KEYSZ, 0, 
-		          &z, NULL, &compare, NULL, &wrote);
+		       &z, NULL, &compare, NULL, 1, &wrote);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot write to node");
 			return -1;

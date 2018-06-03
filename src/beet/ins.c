@@ -15,9 +15,9 @@
  * Plain inserter
  * -------------------------------------------------------------------------
  */
-beet_err_t beet_ins_plain(void *ignore, uint32_t sz, void* trg,
-                                              const void *data) {
-	memcpy(trg, data, sz);
+beet_err_t beet_ins_plain(void *ignore, char upd, uint32_t sz, void* trg,
+                                                        const void *data) {
+	if (upd) memcpy(trg, data, sz);
 	return BEET_OK;
 }
 
@@ -41,14 +41,17 @@ beet_err_t beet_ins_setPlain(beet_ins_t *ins) {
 #define PAIR(x) \
 	((beet_pair_t*)x)
 
-beet_err_t beet_ins_embedded(void *tree, uint32_t sz, void *root,
-                                                const void *data) {
+beet_err_t beet_ins_embedded(void *tree, char upd, uint32_t sz, void *root,
+                                                          const void *data) {
 	beet_err_t err;
 	if (*(beet_pageid_t*)root == BEET_PAGE_NULL) {
 		err = beet_tree_makeRoot(tree, root);
 		if (err != BEET_OK) return err;
 		// fprintf(stderr, "new root is %u\n", *(beet_pageid_t*)root);
 	}
+	if (upd) return beet_tree_upsert(tree, root, PAIR(data)->key,
+ 	                                             PAIR(data)->data);
+
 	return beet_tree_insert(tree, root, PAIR(data)->key,
 	                                    PAIR(data)->data);
 }

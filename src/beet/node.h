@@ -64,6 +64,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
                          const void      *data,
                          ts_algo_comprsc_t cmp,
                          beet_ins_t       *ins,
+                         char              upd,
                          char           *wrote);
 
 /* ------------------------------------------------------------------------

@@ -66,10 +66,19 @@ beet_err_t beet_tree_makeRoot(beet_tree_t   *tree,
                               beet_pageid_t *root);
 
 /* ------------------------------------------------------------------------
- * Insert data into the tree
+ * Insert data into the tree without updating data of existing keys
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_tree_insert(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key,
+                            const void    *data);
+
+/* ------------------------------------------------------------------------
+ * Insert data into the tree updating if the key already exists
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_upsert(beet_tree_t   *tree,
                             beet_pageid_t *root,
                             const void     *key,
                             const void    *data);
