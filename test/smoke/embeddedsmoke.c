@@ -205,7 +205,7 @@ int main() {
 	FILE *roof=NULL;
 	int rc = EXIT_SUCCESS;
 	beet_tree_t tree;
-	beet_tree_t *etree;
+	beet_tree_t *etree=NULL;
 	beet_pageid_t root = BEET_PAGE_LEAF;
 	beet_ins_t *ins;
 	char haveTree = 0;
@@ -302,6 +302,9 @@ int main() {
 
 cleanup:
 	if (haveTree) beet_tree_destroy(&tree);
+	if (etree != NULL) {
+		beet_tree_destroy(etree); free(etree);
+	}
 	if (roof != NULL) fclose(roof);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");

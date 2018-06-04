@@ -75,7 +75,8 @@ const char *beet_oserrdesc();
 #define BEET_ERR_BADCFG  26
 #define BEET_ERR_UNKNTYP 27
 #define BEET_ERR_NOTSUPP 28
-#define BEET_ERR_KEYNF   29
+#define BEET_ERR_KEYNOF  29
+#define BEET_ERR_NOSYM   30
 #define BEET_ERR_TEST   199
 #define BEET_ERR_PANIC  999
 

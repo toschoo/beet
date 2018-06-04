@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 #define MAGIC 0x8ee7
 #define VERSION 1
@@ -515,8 +516,13 @@ static inline beet_err_t getcmp(beet_config_t      *fcfg,
 		*cmp = ocfg->compare;
 		return BEET_OK;
 	}
-	// load symbol
-	return BEET_ERR_NOTSUPP;
+	if (fcfg->compare == NULL) return BEET_ERR_INVALID;
+	*cmp = dlsym(handle, fcfg->compare);
+	if (*cmp == NULL) {
+		fprintf(stderr, "NO SYMBOL: %s\n", dlerror());
+		return BEET_ERR_NOSYM;
+	}
+	return BEET_OK;
 }
 
 /* ------------------------------------------------------------------------
@@ -851,7 +857,7 @@ static beet_err_t getdata(struct beet_index_t *idx,
 	if (!beet_node_equal(node, slot, idx->tree->ksize, key,
 	                                 idx->tree->cmp)) {
 		beet_tree_release(idx->tree, node); free(node);
-		return BEET_ERR_KEYNF;
+		return BEET_ERR_KEYNOF;
 	}
 	*data = beet_node_getData(node, slot, idx->tree->dsize);
 	state->node = node;

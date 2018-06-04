@@ -51,7 +51,6 @@ beet_err_t beet_ins_embedded(void *tree, char upd, uint32_t sz, void *root,
 	}
 	if (upd) return beet_tree_upsert(tree, root, PAIR(data)->key,
  	                                             PAIR(data)->data);
-
 	return beet_tree_insert(tree, root, PAIR(data)->key,
 	                                    PAIR(data)->data);
 }
@@ -60,11 +59,14 @@ beet_err_t beet_ins_embedded(void *tree, char upd, uint32_t sz, void *root,
 	((beet_ins_t*)x)
 
 void beet_ins_embeddedclean(void *ins) {
+	/* we should not destroy it here!
+	 * the index will destroy it!
 	if (ins == NULL) return;
 	if (INS(ins)->rsc != NULL) {
 		beet_tree_destroy(INS(ins)->rsc);
 		free(INS(ins)->rsc); INS(ins)->rsc = NULL;
 	}
+	*/
 }
 
 void beet_ins_embeddedinit(void *ignore, uint32_t n, void *kids) {
