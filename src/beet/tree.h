@@ -29,8 +29,8 @@ typedef struct beet_tree_st {
 	uint32_t        nsize; /* internal nodes size     */
 	uint32_t        ksize; /* key  size               */
 	uint32_t        dsize; /* data size               */
-	beet_rider_t   *nolfs; /* rider for non-leafs     */
-	beet_rider_t     *lfs; /* rider for leafs         */
+	beet_rider_t   *nolfs; /* rider for non-leaves    */
+	beet_rider_t     *lfs; /* rider for leaves        */
 	beet_compare_t    cmp; /* key compare callback    */
 	beet_ins_t       *ins; /* data insertion callback */
 	FILE            *roof; /* root file               */
