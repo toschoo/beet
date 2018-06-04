@@ -39,21 +39,71 @@
 #define MAGIC 0x8ee7
 #define VERSION 1
 
+#define LEAF "leaf"
+#define INTERN "nonleaf"
+
 /* ------------------------------------------------------------------------
  * index
  * ------------------------------------------------------------------------
  */
 struct beet_index_t {
 	beet_tree_t   *tree;
-	beet_pageid_t *root;
-	struct beet_index_t *subidx;
+	beet_pageid_t  root;
+	FILE          *roof;
+	char     standalone;
+	beet_index_t subidx;
 };
+
+/* ------------------------------------------------------------------------
+ * state
+ * ------------------------------------------------------------------------
+ */
+struct beet_state_t {
+	beet_tree_t *tree;
+	beet_node_t *node;
+};
+
+/* ------------------------------------------------------------------------
+ * Macro: set index if not NULL
+ * ------------------------------------------------------------------------
+ */
+#define IDXNULL() \
+	if (idx == NULL) return BEET_ERR_INVALID;
+
+/* ------------------------------------------------------------------------
+ * Macro: Convert beet_index_t to struct
+ * ------------------------------------------------------------------------
+ */
+#define TOIDX(x) \
+	((struct beet_index_t*)x)
+
+/* ------------------------------------------------------------------------
+ * Macro: Convert beet_state_t to struct
+ * ------------------------------------------------------------------------
+ */
+#define TOSTATE(x) \
+	((struct beet_state_t*)x)
 
 /* ------------------------------------------------------------------------
  * Helper: check config
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t checkcfg(beet_config_t *cfg) {
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: update config
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t updcfg(beet_config_t      *fcfg,
+                                beet_open_config_t *ocfg) {
+	if (ocfg->leafCacheSize != BEET_CACHE_IGNORE) {
+		fcfg->leafCacheSize = ocfg->leafCacheSize;
+	}
+	if (ocfg->intCacheSize != BEET_CACHE_IGNORE) {
+		fcfg->intCacheSize = ocfg->intCacheSize;
+	}
 	return BEET_OK;
 }
 
@@ -237,6 +287,38 @@ static inline beet_err_t mkcfg(char *path, beet_config_t *cfg) {
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: get configuration
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getcfg(char *path, beet_config_t *cfg) {
+	beet_err_t err;
+	struct stat st;
+	FILE        *f;
+	char        *p;
+
+	memset(cfg, 0, sizeof(beet_config_t));
+
+	p = malloc(strlen(path) + 8);
+	if (p == NULL) return BEET_ERR_NOMEM;
+
+	sprintf(p, "%s/config", path);
+
+	if (stat(p, &st) != 0) {
+		free(p); return BEET_ERR_NOFILE;
+	}
+
+	f = fopen(p, "rb"); free(p);
+	if (f == NULL) return BEET_OSERR_OPEN;
+
+	err = readcfg(f, st.st_size, cfg);
+	if (err != BEET_OK) {
+		fclose(f); return err;
+	}
+	if (fclose(f) != 0) return BEET_OSERR_CLOSE;
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Helper: make leaf/noleaf
  * ------------------------------------------------------------------------
  */
@@ -264,7 +346,7 @@ static inline beet_err_t mkempty(char *path, char *name) {
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t mkroof(char *path) {
-	beet_pageid_t root = 0;
+	beet_pageid_t root = BEET_PAGE_LEAF;
 	FILE *f;
 	size_t s;
 	char *p;
@@ -286,6 +368,140 @@ static inline beet_err_t mkroof(char *path) {
 
 	if (fclose(f) != 0) return BEET_OSERR_CLOSE;
 	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: make root
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t mkroot(struct beet_index_t *idx,
+                                char *path) {
+	beet_err_t err;
+	struct stat st;
+	char *p;
+
+	/* we could reuse this path */
+	p = malloc(sizeof(path) + sizeof(LEAF) + 2);
+	if (p == NULL) return BEET_ERR_NOMEM;
+
+	sprintf(p, "%s/%s", path, LEAF);
+
+	if (stat(p, &st) != 0) {
+		free(p); return BEET_ERR_NOFILE;
+	}
+	free(p);
+
+	if (st.st_size > 0) return BEET_OK;
+
+	err = beet_tree_makeRoot(idx->tree, &idx->root);
+	if (err != BEET_OK) return err;
+
+	rewind(idx->roof); // != 0) return BEET_OSERR_SEEK;
+
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: get roof
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getroof(struct beet_index_t *idx, char *path) {
+	char *p;
+
+	p = malloc(strlen(path) + 6);
+	if (p == NULL) return BEET_ERR_NOMEM;
+
+	sprintf(p, "%s/roof", path);
+
+	idx->roof = fopen(p, "rb+"); free(p);
+	if (idx->roof == NULL) return BEET_OSERR_OPEN;
+	
+	if (fread(&idx->root, sizeof(beet_pageid_t), 1, idx->roof) != 1) {
+		fclose(idx->roof); idx->roof = NULL;
+		return BEET_OSERR_READ;
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: get leaf rider
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getLeafRider(beet_index_t   sidx,
+                                      char          *path,
+                                      beet_config_t *cfg,
+                                      beet_rider_t  **rider) {
+	beet_err_t err;
+	*rider = calloc(1,sizeof(beet_rider_t));
+	if (*rider == NULL) return BEET_ERR_NOMEM;
+	err = beet_rider_init(*rider, path, LEAF,
+	 cfg->leafPageSize, cfg->leafCacheSize); 
+	if (err != BEET_OK) {
+		free(*rider); *rider = NULL; return err;
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: get inernal rider
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getIntRider(beet_index_t   sidx,
+                                     char          *path,
+                                     beet_config_t *cfg,
+                                     beet_rider_t  **rider) {
+	beet_err_t err;
+	*rider = calloc(1,sizeof(beet_rider_t));
+	if (*rider == NULL) return BEET_ERR_NOMEM;
+	err = beet_rider_init(*rider, path, INTERN,
+	     cfg->intPageSize, cfg->intCacheSize); 
+	if (err != BEET_OK) {
+		free(*rider); *rider = NULL; return err;
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: get inserter
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getins(struct beet_index_t *idx,
+                                beet_config_t       *cfg,
+                                beet_ins_t         **ins) {
+	switch(cfg->indexType) {
+	case BEET_INDEX_NULL: *ins = NULL; return BEET_OK;
+	case BEET_INDEX_PLAIN:
+	case BEET_INDEX_HOST:
+		*ins = calloc(1, sizeof(beet_ins_t));
+		if (*ins == NULL) return BEET_ERR_NOMEM;
+		if (cfg->indexType == BEET_INDEX_PLAIN) beet_ins_setPlain(*ins);
+		else beet_ins_setEmbedded(*ins, idx->subidx);
+		return BEET_OK;
+	default:
+		*ins = NULL; return BEET_ERR_UNKNTYP;
+	}
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: get compare
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getcmp(beet_config_t      *fcfg,
+                                beet_open_config_t *ocfg,
+                                void               *handle,
+                                beet_compare_t     *cmp) {
+
+	/* if this is a host index, we must have a handle and a symbol */
+	if (fcfg->indexType == BEET_INDEX_HOST &&
+	    (fcfg->compare == NULL || handle == NULL)) {
+		return BEET_ERR_INVALID;
+	}
+	if (ocfg->compare != NULL) {
+		*cmp = ocfg->compare;
+		return BEET_OK;
+	}
+	// load symbol
+	return BEET_ERR_NOTSUPP;
 }
 
 /* ------------------------------------------------------------------------
@@ -311,10 +527,10 @@ beet_err_t beet_index_create(char         *path,
 	err = mkcfg(path, cfg);
 	if (err != BEET_OK) return err;
 
-	err = mkempty(path, "leaf");
+	err = mkempty(path, LEAF);
 	if (err != BEET_OK) return err;
 
-	err = mkempty(path, "nonleaf");
+	err = mkempty(path, INTERN);
 	if (err != BEET_OK) return err;
 
 	if (standalone) {
@@ -350,11 +566,150 @@ beet_err_t beet_index_drop(char *path) {
 
 	if (stat(path, &st) != 0) return BEET_ERR_NOFILE;
 
-	REMOVE(p, "leaf", s);
-	REMOVE(p, "nonleaf", s);
+	REMOVE(p, LEAF, s);
+	REMOVE(p, INTERN, s);
 	REMOVE(p, "config", s);
 	REMOVE(p, "rook", s);
 
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: open an index
+ * ------------------------------------------------------------------------
+ */
+static beet_err_t openIndex(char *path, void *handle,
+                            beet_open_config_t *ocfg,
+                            char          standalone,
+                            beet_index_t       *idx) {
+	struct beet_index_t *sidx;
+	beet_rider_t *lfs, *nolfs;
+	beet_config_t fcfg;
+	beet_ins_t    *ins;
+	beet_compare_t cmp;
+	beet_err_t     err;
+
+	if (idx == NULL) return BEET_ERR_INVALID;
+	*idx = NULL;
+
+	if (path == NULL) return BEET_ERR_INVALID;
+	if (handle == NULL && ocfg == NULL) return BEET_ERR_INVALID;
+	if (strnlen(path, 4097) > 4096) return BEET_ERR_TOOBIG;
+
+	err = getcfg(path, &fcfg);
+	if (err != BEET_OK) return err;
+	
+	err = updcfg(&fcfg, ocfg);
+	if (err != BEET_OK) return err;
+
+	sidx = calloc(1,sizeof(struct beet_index_t));
+	if (sidx == NULL) {
+		beet_config_destroy(&fcfg);
+		return BEET_ERR_NOMEM;
+	}
+
+	sidx->standalone = standalone;
+
+	// open roof and set root
+	err = getroof(sidx, path);
+	if (err != BEET_OK) {
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
+	// open leaf
+	err = getLeafRider(sidx, path, &fcfg, &lfs);
+	if (err != BEET_OK) {
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
+	// open internal
+	err = getIntRider(sidx, path, &fcfg, &nolfs);
+	if (err != BEET_OK) {
+		beet_rider_destroy(lfs); free(lfs);
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
+	// open sub idx
+	if (fcfg.indexType == BEET_INDEX_HOST &&
+	    fcfg.subPath != NULL) {
+		err = openIndex(fcfg.subPath,
+		                handle,ocfg,0,
+		                &sidx->subidx);
+		if (err != BEET_OK) {
+			beet_rider_destroy(lfs); free(lfs);
+			beet_rider_destroy(nolfs); free(nolfs);
+			beet_config_destroy(&fcfg);
+			beet_index_close(sidx);
+			return err;
+		}
+	}
+
+	/* get inserter */
+	err = getins(sidx, &fcfg, &ins);
+	if (err != BEET_OK) {
+		beet_rider_destroy(lfs); free(lfs);
+		beet_rider_destroy(nolfs); free(nolfs);
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
+	/* get compare */
+	err = getcmp(&fcfg, ocfg, handle, &cmp);
+	if (err != BEET_OK) {
+		free(ins);
+		beet_rider_destroy(lfs); free(lfs);
+		beet_rider_destroy(nolfs); free(nolfs);
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
+	// init tree
+	sidx->tree = calloc(1,sizeof(beet_tree_t));
+	if (sidx->tree == NULL) {
+		free(ins);
+		beet_rider_destroy(lfs); free(lfs);
+		beet_rider_destroy(nolfs); free(nolfs);
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return BEET_ERR_NOMEM;
+	}
+
+	err = beet_tree_init(sidx->tree,
+	                     fcfg.leafNodeSize,
+	                     fcfg.intNodeSize,
+	                     fcfg.keySize,
+	                     fcfg.dataSize,
+	                     nolfs, lfs,
+	                     sidx->roof,
+	                     cmp, ins);
+	if (err != BEET_OK) {
+		free(ins);
+		beet_rider_destroy(lfs); free(lfs);
+		beet_rider_destroy(nolfs); free(nolfs);
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
+	/* make first root node */
+	if (standalone) {
+		err = mkroot(sidx, path);
+		if (err != BEET_OK) {
+			beet_config_destroy(&fcfg);
+			beet_index_close(sidx);
+			return err;
+		}
+	}
+	beet_config_destroy(&fcfg);
+	*idx = sidx;
 	return BEET_OK;
 }
 
@@ -363,28 +718,73 @@ beet_err_t beet_index_drop(char *path) {
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_open(char *path, void *handle,
-                           beet_open_config_t  *cfg,
-                                 beet_index_t  *idx);
+                           beet_open_config_t *ocfg,
+                           beet_index_t        *idx) {
+	return openIndex(path, handle, ocfg, 1, idx);
+}
 
 /* ------------------------------------------------------------------------
  * Close an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_close(beet_index_t idx);
+void beet_index_close(beet_index_t uidx) {
+	struct beet_index_t *idx = (struct beet_index_t*)uidx;
+
+	if (idx == NULL) return;
+	if (idx->roof != NULL) {
+		fclose(idx->roof); idx->roof = NULL;
+	}
+	if (idx->subidx != NULL) {
+		beet_index_close(idx->subidx); idx->subidx = NULL;
+	}
+	if (idx->tree != NULL) {
+		beet_tree_destroy(idx->tree);
+		free(idx->tree); idx->tree = NULL;
+	}
+	free(idx);
+}
+
+/* ------------------------------------------------------------------------
+ * Destroy config
+ * ------------------------------------------------------------------------
+ */
+void beet_config_destroy(beet_config_t *cfg) {
+	if (cfg == NULL) return;
+	if (cfg->subPath != NULL) {
+		free(cfg->subPath); cfg->subPath = NULL;
+	}
+	if (cfg->compare != NULL) {
+		free(cfg->compare); cfg->compare = NULL;
+	}
+}
+
+/* ------------------------------------------------------------------------
+ * Destroy open config
+ * ------------------------------------------------------------------------
+ */
+void beet_open_config_destroy(beet_open_config_t *cfg) {}
 
 /* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index without updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data);
+beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data) {
+	IDXNULL();
+	return beet_tree_insert(TOIDX(idx)->tree,
+	                       &TOIDX(idx)->root, key, data);
+}
 
 /* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
+beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data) {
+	IDXNULL();
+	return beet_tree_upsert(TOIDX(idx)->tree,
+	                       &TOIDX(idx)->root, key, data);
+}
 
 /* ------------------------------------------------------------------------
  * Removes a key and all its data from the index
@@ -394,10 +794,56 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
 beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
 
 /* ------------------------------------------------------------------------
+ * Helper: get data
+ * ------------------------------------------------------------------------
+ */
+static beet_err_t getdata(struct beet_index_t *idx,
+                          struct beet_state_t *state,
+                          const void *key, void **data) {
+	beet_err_t    err;
+	beet_node_t *node;
+	int32_t      slot;
+
+	err = beet_tree_get(idx->tree, &idx->root, key, &node);
+	if (err != BEET_OK) return err;
+
+	slot = beet_node_search(node, idx->tree->ksize, key,
+	                              idx->tree->cmp);
+	if (slot < 0 || slot > idx->tree->lsize) {
+		beet_tree_release(idx->tree, node);
+		return BEET_ERR_NOSLOT;
+	}
+	if (!beet_node_equal(node, slot, idx->tree->ksize, key,
+	                                 idx->tree->cmp)) {
+		beet_tree_release(idx->tree, node);
+		return BEET_ERR_KEYNF;
+	}
+	*data = beet_node_getData(node, slot, idx->tree->dsize);
+	state->node = node;
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Get data by key (simple)
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_copy(beet_index_t idx, const void *key, void *data);
+beet_err_t beet_index_copy(beet_index_t idx, const void *key, void *data) {
+	struct beet_state_t state = {NULL,NULL};
+	beet_err_t err;
+	void *tmp;
+
+	IDXNULL();
+
+	err = getdata(TOIDX(idx), &state, key, &tmp);
+	if (err != BEET_OK) return err;
+
+	memcpy(data, tmp, TOIDX(idx)->tree->dsize);
+
+	err = beet_tree_release(TOIDX(idx)->tree, state.node);
+	if (err != BEET_OK) return err;
+
+	return BEET_OK;
+}
 
 /* ------------------------------------------------------------------------
  * Allocate new state
@@ -441,7 +887,7 @@ beet_err_t beet_index_delete(beet_index_t  idx,
  * range scan
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_range(beet_index_t    idx,
+beet_err_t beet_index_range(beet_index_t   idx,
                             beet_state_t  state,
                             uint16_t      flags,
                             beet_range_t *range,

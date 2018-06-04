@@ -73,6 +73,9 @@ const char *beet_oserrdesc();
 #define BEET_ERR_NOVER   24
 #define BEET_ERR_UNKNVER 25
 #define BEET_ERR_BADCFG  26
+#define BEET_ERR_UNKNTYP 27
+#define BEET_ERR_NOTSUPP 28
+#define BEET_ERR_KEYNF   29
 #define BEET_ERR_TEST   199
 #define BEET_ERR_PANIC  999
 
@@ -106,6 +109,16 @@ const char *beet_oserrdesc();
 #define BEET_OSERR_REMOV -110
 
 #define BEET_OSERR_UNKN  -9999
+
+/* ------------------------------------------------------------------------
+ * Compare function
+ * ------------------------------------------------------------------------
+ */
+typedef char (*beet_compare_t)(const void*, const void*);
+
+#define BEET_CMP_LESS   -1
+#define BEET_CMP_EQUAL   0
+#define BEET_CMP_GREATER 1
 
 /* -----------------------------------------------------------------------
  * insert (key, data) pairs into embedded b+tree

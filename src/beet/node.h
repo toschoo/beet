@@ -62,7 +62,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
                          uint32_t        dsize,
                          const void       *key,
                          const void      *data,
-                         ts_algo_comprsc_t cmp,
+                         beet_compare_t    cmp,
                          beet_ins_t       *ins,
                          char              upd,
                          char           *wrote);
@@ -97,16 +97,16 @@ beet_pageid_t beet_node_getPageid(beet_node_t *node,
 beet_pageid_t beet_node_searchPageid(beet_node_t *node,
                                      uint32_t    keysz,
                                       const void  *key, 
-                                ts_algo_comprsc_t cmp);
+                                   beet_compare_t cmp);
 
 /* ------------------------------------------------------------------------
  * Generic search
  * ------------------------------------------------------------------------
  */
-int32_t beet_node_search(beet_node_t      *node,
-                         uint32_t         keysz,
-                         const void        *key,
-                         ts_algo_comprsc_t cmp);
+int32_t beet_node_search(beet_node_t  *node,
+                         uint32_t     keysz,
+                         const void    *key,
+                         beet_compare_t cmp);
 
 /* ------------------------------------------------------------------------
  * Test that key at slot is equal to 'key'
@@ -116,5 +116,5 @@ char beet_node_equal(beet_node_t *node,
                      uint32_t     slot,
                      uint32_t    keysz,
                      const void   *key,
-                ts_algo_comprsc_t cmp);
+                   beet_compare_t cmp);
 #endif

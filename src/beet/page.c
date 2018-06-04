@@ -33,8 +33,8 @@ beet_err_t beet_page_alloc(beet_page_t **page,
 	STORENULL();
 
 	/*
-	fprintf(stderr, "new page at %d.%lu: %lu\n",
-	                     fileno(store), pos, k);
+	fprintf(stderr, "new page at %d.%lu\n",
+	                  fileno(store), pos);
 	*/
 
 	*page = calloc(1, sizeof(beet_page_t));

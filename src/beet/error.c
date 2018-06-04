@@ -60,6 +60,12 @@ const char *beet_errdesc(beet_err_t err) {
 		return "invalid config file: unknown version";
 	case BEET_ERR_BADCFG:
 		return "bad config file";
+	case BEET_ERR_UNKNTYP:
+		return "unknown index type";
+	case BEET_ERR_NOTSUPP:
+		return "not supported";
+	case BEET_ERR_KEYNF:
+		return "key not found";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:

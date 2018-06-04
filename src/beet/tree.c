@@ -317,16 +317,16 @@ beet_err_t beet_tree_makeRoot(beet_tree_t *tree, beet_pageid_t *root) {
  * Init B+Tree
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_init(beet_tree_t     *tree,
-                          uint32_t        lsize,
-                          uint32_t        nsize,
-                          uint32_t        ksize,
-                          uint32_t        dsize,
-                          beet_rider_t   *nolfs,
-                          beet_rider_t     *lfs,
-                          FILE            *roof,
-                          ts_algo_comprsc_t cmp,
-                          beet_ins_t       *ins) {
+beet_err_t beet_tree_init(beet_tree_t   *tree,
+                          uint32_t      lsize,
+                          uint32_t      nsize,
+                          uint32_t      ksize,
+                          uint32_t      dsize,
+                          beet_rider_t *nolfs,
+                          beet_rider_t   *lfs,
+                          FILE          *roof,
+                          beet_compare_t  cmp,
+                          beet_ins_t     *ins) {
 	beet_err_t    err;
 
 	TREENULL();

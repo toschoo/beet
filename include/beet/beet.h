@@ -70,30 +70,32 @@ typedef struct {
 #define BEET_CACHE_IGNORE   -2
 
 /* ------------------------------------------------------------------------
+ * Destroy config
+ * ------------------------------------------------------------------------
+ */
+void beet_config_destroy(beet_config_t *cfg);
+
+/* ------------------------------------------------------------------------
  * Light Config
  * ------------------------------------------------------------------------
  */
 typedef struct {
 	int32_t  leafCacheSize; /* cache size for leaf nodes        */
-	int32_t  intCacheSize;  /* cache size for internal nodes    */
-	char    *compare;       /* name of compare function         */
+	int32_t   intCacheSize; /* cache size for internal nodes    */
+	beet_compare_t compare; /* point to compare function        */
 } beet_open_config_t;
+
+/* ------------------------------------------------------------------------
+ * Destroy open config
+ * ------------------------------------------------------------------------
+ */
+void beet_open_config_destroy(beet_open_config_t *cfg);
 
 /* ------------------------------------------------------------------------
  * The BEET Index
  * ------------------------------------------------------------------------
  */
 typedef struct beet_index_t *beet_index_t;
-
-/* ------------------------------------------------------------------------
- * Compare function
- * ------------------------------------------------------------------------
- */
-typedef char (*beet_compare_t)(const void*, const void*);
-
-#define BEET_CMP_LESS   -1
-#define BEET_CMP_EQUAL   0
-#define BEET_CMP_GREATER 1
 
 /* ------------------------------------------------------------------------
  * Create an index
@@ -121,7 +123,7 @@ beet_err_t beet_index_open(char *path, void *handle,
  * Close an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_close(beet_index_t idx);
+void beet_index_close(beet_index_t idx);
 
 /* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index without updating the data

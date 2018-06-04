@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 void errmsg(beet_err_t err, char *msg) {
 	fprintf(stderr, "%s: %s (%d)\n", msg, beet_errdesc(err), err);
@@ -18,6 +19,15 @@ void errmsg(beet_err_t err, char *msg) {
 
 beet_config_t config;
 
+#define DEREF(x) \
+	(*(int*)x)
+
+char compare(const void *one, const void *two) {
+	if (DEREF(one) < DEREF(two)) return BEET_CMP_LESS;
+	if (DEREF(one) > DEREF(two)) return BEET_CMP_GREATER;
+	return BEET_CMP_EQUAL;
+}
+
 int createIndex(beet_config_t *cfg) {
 	beet_err_t err;
 
@@ -27,6 +37,23 @@ int createIndex(beet_config_t *cfg) {
 		return -1;
 	}
 	return 0;
+}
+
+beet_index_t openIndex(char *path) {
+	beet_err_t   err;
+	beet_index_t idx=NULL;
+	beet_open_config_t cfg;
+
+	cfg.leafCacheSize = BEET_CACHE_IGNORE;
+	cfg.intCacheSize = BEET_CACHE_IGNORE;
+	cfg.compare = &compare;
+
+	err = beet_index_open("rsc/idx10", NULL, &cfg, &idx);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot open index");
+		return NULL;
+	}
+	return idx;
 }
 
 int createDropIndex() {
@@ -40,8 +67,47 @@ int createDropIndex() {
 	return 0;
 }
 
+int writeRange(beet_index_t idx, int lo, int hi) {
+	beet_err_t err;
+
+	for(int i=lo; i<hi; i++) {
+		err = beet_index_insert(idx, &i, &i);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot insert");
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int easyRead(beet_index_t idx, int hi) {
+	beet_err_t err;
+	int k;
+	int d;
+	for(int i=0; i<100; i++) {
+		k=rand()%hi;
+
+		// fprintf(stderr, "reading %d\n", k);
+
+		err = beet_index_copy(idx, &k, &d);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot copy from index");
+			return -1;
+		}
+		if (d != k) {
+			fprintf(stderr, "wrong data: %d - %d\n", k, d);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 int main() {
 	int rc = EXIT_SUCCESS;
+	beet_index_t idx;
+	int haveIndex = 0;
+
+	srand(time(NULL) ^ (uint64_t)&printf);
 
 	config.indexType = BEET_INDEX_PLAIN;
 	config.leafPageSize = 128;
@@ -63,8 +129,56 @@ int main() {
 		fprintf(stderr, "createIndex failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	idx = openIndex("rsc/idx10");
+	if (idx == NULL) {
+		fprintf(stderr, "openIndex failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	haveIndex = 1;
+	
+	if (writeRange(idx, 0, 13) != 0) {
+		fprintf(stderr, "writeRange 0-13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	beet_index_close(idx); haveIndex = 0;
+	idx = openIndex("rsc/idx10");
+	if (idx == NULL) {
+		fprintf(stderr, "openIndex (2) failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	haveIndex = 1;
+
+	if (easyRead(idx, 13) != 0) {
+		fprintf(stderr, "easyRead 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (writeRange(idx, 13, 64) != 0) {
+		fprintf(stderr, "writeRange 13-64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyRead(idx, 64) != 0) {
+		fprintf(stderr, "easyRead 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (writeRange(idx, 50, 99) != 0) {
+		fprintf(stderr, "writeRange 50-99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyRead(idx, 99) != 0) {
+		fprintf(stderr, "easyRead 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (writeRange(idx, 99, 200) != 0) {
+		fprintf(stderr, "writeRange 99-200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyRead(idx, 200) != 0) {
+		fprintf(stderr, "easyRead 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 
 cleanup:
+	if (haveIndex) beet_index_close(idx);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");
 	} else {

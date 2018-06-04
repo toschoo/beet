@@ -75,10 +75,10 @@ int createPath(char *path) {
 #define DEREF(x) \
 	(*(int*)x)
 
-ts_algo_cmp_t compare(void *ignore, void *one, void *two) {
-	if (DEREF(one) < DEREF(two)) return ts_algo_cmp_less;
-	if (DEREF(one) > DEREF(two)) return ts_algo_cmp_greater;
-	return ts_algo_cmp_equal;
+char compare(const void *one, const void *two) {
+	if (DEREF(one) < DEREF(two)) return BEET_CMP_LESS;
+	if (DEREF(one) > DEREF(two)) return BEET_CMP_GREATER;
+	return BEET_CMP_EQUAL;
 }
 
 int initTree(beet_tree_t *tree, char *base,
