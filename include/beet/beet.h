@@ -171,6 +171,12 @@ beet_err_t beet_state_alloc(beet_index_t idx, beet_state_t *state);
 void beet_state_destroy(beet_state_t state);
 
 /* ------------------------------------------------------------------------
+ * Clean state for reuse
+ * ------------------------------------------------------------------------
+ */
+void beet_state_reinit(beet_state_t state);
+
+/* ------------------------------------------------------------------------
  * Release all locks
  * ------------------------------------------------------------------------
  */
@@ -190,9 +196,15 @@ beet_err_t beet_index_get(beet_index_t  idx,
  * Flags
  * ------------------------------------------------------------------------
  */
-#define BEET_FLAGS_COPY    1
 #define BEET_FLAGS_RELEASE 2
 #define BEET_FLAGS_SUBTREE 4
+
+/* ------------------------------------------------------------------------
+ * Mere existence test
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_doesExist(beet_index_t  idx,
+                                const void   *key);
 
 /* ------------------------------------------------------------------------
  * Removes a key and all its data from the index or its subtree

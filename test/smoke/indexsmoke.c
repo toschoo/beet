@@ -70,6 +70,7 @@ int createDropIndex() {
 int writeRange(beet_index_t idx, int lo, int hi) {
 	beet_err_t err;
 
+	fprintf(stderr, "writing %d to %d\n", lo, hi);
 	for(int i=lo; i<hi; i++) {
 		err = beet_index_insert(idx, &i, &i);
 		if (err != BEET_OK) {
@@ -99,6 +100,62 @@ int easyRead(beet_index_t idx, int hi) {
 			return -1;
 		}
 	}
+	return 0;
+}
+
+int testDoesExist(beet_index_t idx, int hi) {
+	beet_err_t err;
+	int k;
+	for(int i=0; i<100; i++) {
+		k=rand()%hi;
+
+		// fprintf(stderr, "reading %d\n", k);
+
+		err = beet_index_doesExist(idx, &k);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot copy from index");
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int zerocopyRead(beet_index_t idx, int hi) {
+	beet_state_t state=NULL;
+	beet_err_t err;
+	int k;
+	int *d;
+
+	err = beet_state_alloc(idx, &state);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot allocate state");
+		return -1;
+	}
+	for(int i=0; i<100; i++) {
+		k=rand()%hi;
+
+		// fprintf(stderr, "reading %d\n", k);
+
+		err = beet_index_get(idx, state, 0, &k, (void**)&d);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot get data from index");
+			beet_state_destroy(state);
+			return -1;
+		}
+		if (*d != k) {
+			fprintf(stderr, "wrong data: %d - %d\n", k, *d);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_state_release(state);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot release state");
+			beet_state_destroy(state);
+			return -1;
+		}
+		beet_state_reinit(state);
+	}
+	beet_state_destroy(state);
 	return 0;
 }
 
@@ -136,10 +193,49 @@ int main() {
 	}
 	haveIndex = 1;
 	
+	/* test with 13 (key,value) pairs */
 	if (writeRange(idx, 0, 13) != 0) {
 		fprintf(stderr, "writeRange 0-13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (testDoesExist(idx, 13) != 0) {
+		fprintf(stderr, "testDoesExist 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyRead(idx, 13) != 0) {
+		fprintf(stderr, "easyRead 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (zerocopyRead(idx, 13) != 0) {
+		fprintf(stderr, "zerocopyRead 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+
+	/* test with 64 (key,value) pairs */
+	if (writeRange(idx, 13, 64) != 0) {
+		fprintf(stderr, "writeRange 13-64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testDoesExist(idx, 64) != 0) {
+		fprintf(stderr, "testDoesExist 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyRead(idx, 64) != 0) {
+		fprintf(stderr, "easyRead 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (zerocopyRead(idx, 64) != 0) {
+		fprintf(stderr, "zerocopyRead 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+
+	/* test with 99 (key,value) pairs */
+	if (writeRange(idx, 50, 99) != 0) {
+		fprintf(stderr, "writeRange 50-99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+
+	/* close/open in between */
 	beet_index_close(idx); haveIndex = 0;
 	idx = openIndex("rsc/idx10");
 	if (idx == NULL) {
@@ -147,33 +243,33 @@ int main() {
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	haveIndex = 1;
-
-	if (easyRead(idx, 13) != 0) {
-		fprintf(stderr, "easyRead 13 failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (writeRange(idx, 13, 64) != 0) {
-		fprintf(stderr, "writeRange 13-64 failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (easyRead(idx, 64) != 0) {
-		fprintf(stderr, "easyRead 64 failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
-	if (writeRange(idx, 50, 99) != 0) {
-		fprintf(stderr, "writeRange 50-99 failed\n");
+	if (testDoesExist(idx, 99) != 0) {
+		fprintf(stderr, "testDoesExist 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	if (easyRead(idx, 99) != 0) {
 		fprintf(stderr, "easyRead 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (zerocopyRead(idx, 99) != 0) {
+		fprintf(stderr, "zerocopyRead 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	if (writeRange(idx, 99, 200) != 0) {
 		fprintf(stderr, "writeRange 99-200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	/* test with 200 (key,value) pairs */
+	if (testDoesExist(idx,200) != 0) {
+		fprintf(stderr, "testDoesExist 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	if (easyRead(idx, 200) != 0) {
 		fprintf(stderr, "easyRead 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (zerocopyRead(idx, 200) != 0) {
+		fprintf(stderr, "zerocopyRead 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
