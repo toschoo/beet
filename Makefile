@@ -163,14 +163,14 @@ $(SMK)/indexsmoke:	lib $(SMK)/indexsmoke.o $(COM)/math.o
 			                    $(COM)/math.o      \
 			                    $(libs) -lbeet
 
-$(COM)/libcmp.so:	$(COM)/cmp.o
+$(OUTLIB)/libcmp.so:	$(COM)/cmp.o
 			$(LNKMSG)
 			$(CC) -shared \
 			      -o $(OUTLIB)/libcmp.so \
 			         $(COM)/cmp.o
 
 $(SMK)/hostsmoke:	lib $(SMK)/hostsmoke.o $(COM)/math.o \
-			$(COM)/libcmp.so
+			$(OUTLIB)/libcmp.so
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/hostsmoke   \
 			                    $(SMK)/hostsmoke.o \

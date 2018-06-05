@@ -60,9 +60,9 @@ struct beet_index_t {
  * ------------------------------------------------------------------------
  */
 struct beet_state_t {
-	beet_tree_t   *tree;
+	beet_tree_t   *tree[2];
 	beet_pageid_t *root;
-	beet_node_t   *node;
+	beet_node_t   *node[2];
 };
 
 /* ------------------------------------------------------------------------
@@ -491,7 +491,7 @@ static inline beet_err_t getins(struct beet_index_t *idx,
 		*ins = calloc(1, sizeof(beet_ins_t));
 		if (*ins == NULL) return BEET_ERR_NOMEM;
 		if (cfg->indexType == BEET_INDEX_PLAIN) beet_ins_setPlain(*ins);
-		else beet_ins_setEmbedded(*ins, idx->subidx);
+		else beet_ins_setEmbedded(*ins, idx->subidx->tree);
 		return BEET_OK;
 	default:
 		*ins = NULL; return BEET_ERR_UNKNTYP;
@@ -824,13 +824,18 @@ beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
 static inline beet_err_t staterelease(struct beet_state_t *state) {
 	beet_err_t err;
 
-	if (state->node != NULL &&
-	    state->tree != NULL) {
-		err = beet_tree_release(state->tree,state->node);
-		if (err != BEET_OK) return err;
-		free(state->node);
-		CLEANSTATE(state);
+	for(int i=1; i>=0; i--) {
+		if (state->node[i] != NULL &&
+		    state->tree[i] != NULL) {
+			err = beet_tree_release(state->tree[i],
+			                        state->node[i]);
+			if (err != BEET_OK) return err;
+			free(state->node[i]);
+			state->node[i] = NULL;
+			state->tree[i] = NULL;
+		}
 	}
+	CLEANSTATE(state);
 	return BEET_OK;
 }
 
@@ -845,7 +850,12 @@ static beet_err_t getdata(struct beet_index_t *idx,
 	beet_node_t *node;
 	int32_t      slot;
 
-	err = beet_tree_get(idx->tree, &idx->root, key, &node);
+	if (TOSTATE(state)->root != NULL) {
+		err = beet_tree_get(idx->tree, TOSTATE(state)->root,
+		                                        key, &node);
+	} else {
+		err = beet_tree_get(idx->tree, &idx->root, key, &node);
+	}
 	if (err != BEET_OK) return err;
 
 	slot = beet_node_search(node, idx->tree->ksize, key,
@@ -859,9 +869,17 @@ static beet_err_t getdata(struct beet_index_t *idx,
 		beet_tree_release(idx->tree, node); free(node);
 		return BEET_ERR_KEYNOF;
 	}
-	*data = beet_node_getData(node, slot, idx->tree->dsize);
-	state->node = node;
-	state->tree = idx->tree;
+	if (data != NULL) {
+		*data = beet_node_getData(node, slot,
+		                   idx->tree->dsize);
+	}
+	for(int i=0;i<2;i++) {
+		if (state->node[i] == NULL) {
+			state->node[i] = node;
+			state->tree[i] = idx->tree;
+			break;
+		}
+	}
 	return BEET_OK;
 }
 
@@ -934,19 +952,51 @@ beet_err_t beet_index_get(beet_index_t  idx,
                           beet_state_t  state,
                           uint16_t      flags,
                           const void   *key,
-                          void        **data) {
+                          void       **data) {
 	beet_err_t err;
 
 	IDXNULL();
 	STATENULL();
 
-	err = getdata(TOIDX(idx), TOSTATE(state), key, data);
+	if (flags & BEET_FLAGS_SUBTREE) {
+		if (TOIDX(idx)->subidx == NULL) return BEET_ERR_INVALID;
+		if (TOSTATE(state)->root == NULL) return BEET_ERR_INVALID;
+		err = getdata(TOIDX(idx)->subidx,
+		              TOSTATE(state), key, data);
+	} else if (flags & BEET_FLAGS_ROOT) {
+		err = getdata(TOIDX(idx), TOSTATE(state), key,
+		                 (void**)&TOSTATE(state)->root);
+	} else {
+		err = getdata(TOIDX(idx), TOSTATE(state), key, data);
+	}
 	if (err != BEET_OK) return err;
-
 	if (flags & BEET_FLAGS_RELEASE) {
 		err = staterelease(TOSTATE(state));
 		if (err != BEET_OK) return err;
-	}
+	} 
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Get data with state and finer control for subindex
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_get2(beet_index_t  idx,
+                           beet_state_t  state,
+                           uint16_t      flags,
+                           const void   *key1,
+                           const void   *key2,
+                           void        **data) {
+	beet_err_t err;
+
+	err = beet_index_get(idx, TOSTATE(state),
+	            BEET_FLAGS_ROOT, key1, NULL);
+	if (err != BEET_OK) return err;
+
+	err = beet_index_get(idx, TOSTATE(state), flags |
+	                 BEET_FLAGS_SUBTREE, key2, data);
+	if (err != BEET_OK) return err;
+
 	return BEET_OK;
 }
 
@@ -956,10 +1006,32 @@ beet_err_t beet_index_get(beet_index_t  idx,
  */
 beet_err_t beet_index_doesExist(beet_index_t  idx,
                                 const void   *key) {
-	void *data = NULL;
 	struct beet_state_t state;
 	CLEANSTATE(&state);
-	return beet_index_get(idx, &state, BEET_FLAGS_RELEASE, key, &data);
+	return beet_index_get(idx, &state, BEET_FLAGS_RELEASE, key, NULL);
+}
+
+/* ------------------------------------------------------------------------
+ * Existence test for embedded index
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_doesExist2(beet_index_t   idx,
+                                 const void   *key1,
+                                 const void   *key2) {
+	beet_err_t err;
+	struct beet_state_t state;
+	CLEANSTATE(&state);
+
+	err = beet_index_get(idx, &state, BEET_FLAGS_ROOT, key1, NULL);
+	if (err != BEET_OK) return err;
+
+	err = beet_index_get(idx, &state, BEET_FLAGS_SUBTREE |
+	                                  BEET_FLAGS_RELEASE, key2, NULL);
+	if (err != BEET_OK) {
+		staterelease(&state);
+		return err;
+	}
+	return BEET_OK;
 }
 
 /* ------------------------------------------------------------------------

@@ -197,7 +197,8 @@ beet_err_t beet_index_get(beet_index_t  idx,
  * ------------------------------------------------------------------------
  */
 #define BEET_FLAGS_RELEASE 2
-#define BEET_FLAGS_SUBTREE 4
+#define BEET_FLAGS_ROOT    4
+#define BEET_FLAGS_SUBTREE 8
 
 /* ------------------------------------------------------------------------
  * Mere existence test
@@ -205,6 +206,25 @@ beet_err_t beet_index_get(beet_index_t  idx,
  */
 beet_err_t beet_index_doesExist(beet_index_t  idx,
                                 const void   *key);
+
+/* ------------------------------------------------------------------------
+ * Get data for subtree
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_get2(beet_index_t  idx,
+                           beet_state_t  state,
+                           uint16_t      flags,
+                           const void   *key1,
+                           const void   *key2,
+                           void        **data);
+
+/* ------------------------------------------------------------------------
+ * Existence test for embedded tree
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_doesExist2(beet_index_t   idx,
+                                 const void   *key1,
+                                 const void   *key2);
 
 /* ------------------------------------------------------------------------
  * Removes a key and all its data from the index or its subtree
