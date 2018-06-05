@@ -16,19 +16,6 @@
 #define EMBIDX "rsc/idx20"
 #define HOSTIDX "rsc/idx30"
 
-#define MAXN 100000
-
-uint64_t gbuf[MAXN];
-
-void group(uint64_t n, uint64_t *ds) {
-	int i = 0;
-	for(uint64_t k=1;k<=n;k++) {
-		if (gcd(n,k) == 1) {
-			ds[i] = k; i++;
-		}
-	}
-}
-
 void errmsg(beet_err_t err, char *msg) {
 	fprintf(stderr, "%s: %s (%d)\n", msg, beet_errdesc(err), err);
 	if (err < BEET_OSERR_ERRNO) {
@@ -83,10 +70,9 @@ int writeRange(beet_index_t idx, int lo, int hi) {
 
 	fprintf(stderr, "writing %d to %d\n", lo, hi);
 	for(uint64_t n=lo; n<hi; n++) {
-		memset(gbuf,0,(n+1)*sizeof(uint64_t));
-		group(n,gbuf);
-		for(int i=0; i<=n && gbuf[i] != 0; i++) {
-			pair.key = gbuf+i;
+		for(uint64_t i=1; i<=n; i++) {
+			if (i>1 && gcd(n,i) != 1) continue;
+			pair.key = &i;
 			pair.data = NULL;
 			err = beet_index_insert(idx, &n, &pair);
 			if (err != BEET_OK) {
@@ -103,9 +89,6 @@ int testDoesExist(beet_index_t idx, int hi) {
 	uint64_t k=0;
 	for(int i=0; i<25; i++) {
 		do k=rand()%hi; while(k==0);
-
-		// fprintf(stderr, "reading %d\n", k);
-
 		err = beet_index_doesExist(idx, &k);
 		if (err != BEET_OK) {
 			errmsg(err, "does not exist");
@@ -122,15 +105,13 @@ int deepExists(beet_index_t idx, int hi) {
 	for(int i=0; i<25; i++) {
 		do k=rand()%hi; while(k==0);
 
-		// fprintf(stderr, "reading %d\n", k);
-		memset(gbuf,0,(k+1)*sizeof(uint64_t));
-		group(k,gbuf);
-
-		for(int z=0;z<k && gbuf[z] != 0; z++) {
-			err = beet_index_doesExist2(idx, &k, gbuf+z);
+		for(uint64_t z=1;z<=k; z++) {
+			if (gcd(k,z) != 1) continue;
+			// fprintf(stderr, "reading %lu/%lu\n",k,z);
+			err = beet_index_doesExist2(idx, &k, &z);
 			if (err != BEET_OK) {
 				fprintf(stderr, 
-				"%lu does not exist for %lu\n", gbuf[z], k);
+				"%lu does not exist for %lu\n", z, k);
 				errmsg(err, "error");
 				return -1;
 			}
@@ -152,15 +133,64 @@ int readDeep(beet_index_t idx, int hi) {
 	for(int i=0; i<25; i++) {
 		do k=rand()%hi; while (k==0);
 
-		// fprintf(stderr, "reading %d\n", k);
-		memset(gbuf,0,(k+1)*sizeof(uint64_t));
-		group(k,gbuf);
-
-		for(int z=0;z<k && gbuf[z] != 0; z++) {
+		for(uint64_t z=1;z<=k; z++) {
+			if (gcd(k,z) != 1) continue;
+			// fprintf(stderr, "reading %lu/%lu\n", k,z);
 			err = beet_index_get2(idx, state, BEET_FLAGS_RELEASE,
-			                                   &k, gbuf+z, NULL);
+			                                       &k, &z, NULL);
 			if (err != BEET_OK) {
 				errmsg(err, "cannot get root from index");
+				beet_state_destroy(state);
+				return -1;
+			}
+			beet_state_reinit(state);
+		}
+	}
+	beet_state_destroy(state);
+	return 0;
+}
+
+int dontfind(beet_index_t idx, int hi) {
+	beet_state_t state=NULL;
+	beet_err_t err;
+	uint64_t k=0;
+
+	for(uint64_t i=hi;i<2*hi;i++) {
+		err = beet_index_doesExist(idx, &i);
+		if (err == BEET_OK) {
+			fprintf(stderr, "found: %lu\n",i);
+			return -1;
+		}
+		if (err != BEET_ERR_KEYNOF) {
+			errmsg(err, "wrong error");
+			return -1;
+		}
+	}
+	err = beet_state_alloc(idx, &state);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot allocate state");
+		return -1;
+	}
+	for(int i=0; i<25; i++) {
+		do k=rand()%hi; while (k==0);
+
+		for(uint64_t z=2;z<k; z++) {
+			if (gcd(k,z) == 1) continue;
+			int x = rand()%2;
+			if (x) {
+				err = beet_index_get2(idx, state,
+				              BEET_FLAGS_RELEASE,
+			                           &k, &z, NULL);
+			} else {
+				err = beet_index_doesExist2(idx, &k, &z);
+			}
+			if (err == BEET_OK) {
+				fprintf(stderr, "found %lu for %lu\n",z,k);
+				fprintf(stderr, "gcd: %lu\n",gcd(k,z));
+				return -1;
+			}
+			if (err != BEET_ERR_KEYNOF) {
+				errmsg(err, "wrong error");
 				beet_state_destroy(state);
 				return -1;
 			}
@@ -295,6 +325,10 @@ int main() {
 	}
 	if (readDeep(idx, 200) != 0) {
 		fprintf(stderr, "readDeep 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (dontfind(idx, 200) != 0) {
+		fprintf(stderr, "dontfind 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
