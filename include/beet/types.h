@@ -24,19 +24,28 @@
 #ifndef beet_types_decl
 #define beet_types_decl
 
+/* -----------------------------------------------------------------------
+ * Error indicator
+ * -----------------------------------------------------------------------
+ */
+typedef int beet_err_t;
+
 /* ------------------------------------------------------------------------
  * Compare function
- * TODO:
- * - the function shall allow an additional resource (like qsort_r)
- * - the resource shall be initialised by either a dynamically loaded
- *   symbol or by a function pointer in open (like the compare itself)
  * ------------------------------------------------------------------------
  */
-typedef char (*beet_compare_t)(const void*, const void*);
+typedef char (*beet_compare_t)(const void*, const void*, void*);
 
 #define BEET_CMP_LESS   -1
 #define BEET_CMP_EQUAL   0
 #define BEET_CMP_GREATER 1
+
+/* ------------------------------------------------------------------------
+ * resource initialisation and destruction
+ * ------------------------------------------------------------------------
+ */
+typedef beet_err_t (*beet_rscinit_t)(void**);
+typedef void (*beet_rscdest_t)(void**);
 
 /* -----------------------------------------------------------------------
  * insert (key, data) pairs into embedded b+tree
@@ -46,12 +55,6 @@ typedef struct {
 	void *key;
 	void *data;
 } beet_pair_t;
-
-/* -----------------------------------------------------------------------
- * Error indicator
- * -----------------------------------------------------------------------
- */
-typedef int beet_err_t;
 
 /* -----------------------------------------------------------------------
  * Return a constant string describing the error

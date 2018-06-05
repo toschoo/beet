@@ -44,6 +44,8 @@ beet_index_t openIndex(char *path, void *handle) {
 	cfg.leafCacheSize = BEET_CACHE_IGNORE;
 	cfg.intCacheSize = BEET_CACHE_IGNORE;
 	cfg.compare = NULL;
+	cfg.rscinit = NULL;
+	cfg.rscdest = NULL;
 
 	err = beet_index_open(path, handle, &cfg, &idx);
 	if (err != BEET_OK) {
@@ -220,6 +222,8 @@ int main() {
 	config.dataSize = 0;
 	config.subPath = NULL;
 	config.compare = "beetSmokeUInt64Compare";
+	config.rscinit = NULL;
+	config.rscdest = NULL;
 
 	handle = dlopen("libcmp.so", RTLD_LAZY | RTLD_LOCAL);
 	if (handle == NULL) {

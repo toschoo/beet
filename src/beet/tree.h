@@ -25,32 +25,37 @@
  * ------------------------------------------------------------------------
  */
 typedef struct beet_tree_st {
-	uint32_t        lsize; /* leaf node size          */
-	uint32_t        nsize; /* internal nodes size     */
-	uint32_t        ksize; /* key  size               */
-	uint32_t        dsize; /* data size               */
-	beet_rider_t   *nolfs; /* rider for non-leaves    */
-	beet_rider_t     *lfs; /* rider for leaves        */
-	beet_compare_t    cmp; /* key compare callback    */
-	beet_ins_t       *ins; /* data insertion callback */
-	FILE            *roof; /* root file               */
-	beet_lock_t     rlock; /* root file protection    */
+	uint32_t        lsize; /* leaf node size           */
+	uint32_t        nsize; /* internal nodes size      */
+	uint32_t        ksize; /* key  size                */
+	uint32_t        dsize; /* data size                */
+	beet_rider_t   *nolfs; /* rider for non-leaves     */
+	beet_rider_t     *lfs; /* rider for leaves         */
+	beet_compare_t    cmp; /* key compare callback     */
+	beet_rscinit_t  rinit; /* rsc init callback        */
+	beet_rscdest_t  rdest; /* rsc destruction callback */
+	void             *rsc; /* user resources           */
+	beet_ins_t       *ins; /* data insertion callback  */
+	FILE            *roof; /* root file                */
+	beet_lock_t     rlock; /* root file protection     */
 } beet_tree_t;
 
 /* ------------------------------------------------------------------------
  * Init B+Tree
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_init(beet_tree_t   *tree,
-                          uint32_t      lsize,
-                          uint32_t      nsize,
-                          uint32_t      ksize,
-                          uint32_t      dsize,
-                          beet_rider_t *nolfs,
-                          beet_rider_t   *lfs,
-                          FILE          *roof,
-                          beet_compare_t  cmp,
-                          beet_ins_t    *ins);
+beet_err_t beet_tree_init(beet_tree_t    *tree,
+                          uint32_t       lsize,
+                          uint32_t       nsize,
+                          uint32_t       ksize,
+                          uint32_t       dsize,
+                          beet_rider_t  *nolfs,
+                          beet_rider_t    *lfs,
+                          FILE           *roof,
+                          beet_compare_t   cmp,
+                          beet_rscinit_t rinit,
+                          beet_rscdest_t rdest,
+                          beet_ins_t     *ins);
 
 /* ------------------------------------------------------------------------
  * Destroy B+Tree

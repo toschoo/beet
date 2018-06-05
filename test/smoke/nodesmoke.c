@@ -64,7 +64,7 @@ int createFile(char *path, char *name) {
 #define DEREF(x) \
 	(*(int*)x)
 
-char compare(const void *one, const void *two) {
+char compare(const void *one, const void *two, void *ignore) {
 	if (DEREF(one) < DEREF(two)) return BEET_CMP_LESS;
 	if (DEREF(one) > DEREF(two)) return BEET_CMP_GREATER;
 	return BEET_CMP_EQUAL;
@@ -86,8 +86,8 @@ int testWriteNums(beet_rider_t *rider) {
 	node.prev = BEET_PAGE_NULL;
 
 	for(int z=NODESZ-1;z>=0;z--) {
-		err = beet_node_add(&node, NODESZ, KEYSZ, 0, 
-		       &z, NULL, &compare, NULL, 1, &wrote);
+		err = beet_node_add(&node, NODESZ, KEYSZ, 0, &z,
+		         NULL, &compare, NULL, NULL, 1, &wrote);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot write to node");
 			return -1;
@@ -130,12 +130,12 @@ int testReadRandom(beet_rider_t *rider) {
 
 	for(int i=0;i<50;i++) {
 		k=rand()%NODESZ;
-		slot = beet_node_search(&node, KEYSZ, &k, compare);
+		slot = beet_node_search(&node, KEYSZ, &k, compare, NULL);
 		if (slot < 0) {
 			fprintf(stderr, "unexpected result: %d\n", k);
 			return -1;
 		}
-		if (!beet_node_equal(&node, slot, KEYSZ, &k, compare)) {
+		if (!beet_node_equal(&node, slot, KEYSZ, &k, compare, NULL)) {
 			fprintf(stderr, "key not found: %d (%d)\n", k, slot);
 			return -1;
 		}

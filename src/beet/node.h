@@ -63,6 +63,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
                          const void       *key,
                          const void      *data,
                          beet_compare_t    cmp,
+                         void             *rsc,
                          beet_ins_t       *ins,
                          char              upd,
                          char           *wrote);
@@ -94,10 +95,11 @@ beet_pageid_t beet_node_getPageid(beet_node_t *node,
  * Search link to follow
  * ------------------------------------------------------------------------
  */
-beet_pageid_t beet_node_searchPageid(beet_node_t *node,
-                                     uint32_t    keysz,
-                                      const void  *key, 
-                                   beet_compare_t cmp);
+beet_pageid_t beet_node_searchPageid(beet_node_t   *node,
+                                     uint32_t       keysz,
+                                     const void    *key, 
+                                     beet_compare_t cmp,
+                                     void          *rsc);
 
 /* ------------------------------------------------------------------------
  * Generic search
@@ -106,15 +108,17 @@ beet_pageid_t beet_node_searchPageid(beet_node_t *node,
 int32_t beet_node_search(beet_node_t  *node,
                          uint32_t     keysz,
                          const void    *key,
-                         beet_compare_t cmp);
+                         beet_compare_t cmp,
+                         void          *rsc);
 
 /* ------------------------------------------------------------------------
  * Test that key at slot is equal to 'key'
  * ------------------------------------------------------------------------
  */
-char beet_node_equal(beet_node_t *node,
-                     uint32_t     slot,
-                     uint32_t    keysz,
-                     const void   *key,
-                   beet_compare_t cmp);
+char beet_node_equal(beet_node_t  *node,
+                     uint32_t      slot,
+                     uint32_t     keysz,
+                     const void    *key,
+                     beet_compare_t cmp,
+                     void          *rsc);
 #endif

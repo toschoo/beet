@@ -89,6 +89,10 @@
  */
 void beet_tree_destroy(beet_tree_t *tree) {
 	if (tree == NULL) return;
+	if (tree->rdest != NULL && tree->rsc != NULL) {
+		tree->rdest(&tree->rsc);
+		tree->rsc = NULL;
+	}
 	beet_lock_destroy(&tree->rlock);
 	if (tree->ins != NULL) {
 		tree->ins->cleaner(tree->ins);
@@ -317,16 +321,18 @@ beet_err_t beet_tree_makeRoot(beet_tree_t *tree, beet_pageid_t *root) {
  * Init B+Tree
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_init(beet_tree_t   *tree,
-                          uint32_t      lsize,
-                          uint32_t      nsize,
-                          uint32_t      ksize,
-                          uint32_t      dsize,
-                          beet_rider_t *nolfs,
-                          beet_rider_t   *lfs,
-                          FILE          *roof,
-                          beet_compare_t  cmp,
-                          beet_ins_t     *ins) {
+beet_err_t beet_tree_init(beet_tree_t    *tree,
+                          uint32_t       lsize,
+                          uint32_t       nsize,
+                          uint32_t       ksize,
+                          uint32_t       dsize,
+                          beet_rider_t  *nolfs,
+                          beet_rider_t    *lfs,
+                          FILE           *roof,
+                          beet_compare_t   cmp,
+                          beet_rscinit_t rinit,
+                          beet_rscdest_t rdest,
+                          beet_ins_t      *ins) {
 	beet_err_t    err;
 
 	TREENULL();
@@ -339,7 +345,16 @@ beet_err_t beet_tree_init(beet_tree_t   *tree,
 	tree->lfs    = lfs;
 	tree->roof   = roof;
 	tree->cmp    = cmp;
+	tree->rinit  = rinit;
+	tree->rdest  = rdest;
 	tree->ins    = ins;
+	tree->rsc    = NULL;
+
+	/* user-defined resource */
+	if (tree->rinit != NULL) {
+		err = tree->rinit(&tree->rsc);
+		if (err != BEET_OK) return err;
+	}
 
 	/* init root file latch */
 	err = beet_lock_init(&tree->rlock);
@@ -495,6 +510,7 @@ static beet_err_t insert(beet_tree_t   *tree,
 			          tree->dsize,
 			          key, data,        
 			          tree->cmp,
+	                          tree->rsc,
 			          tree->ins,
                                   upd, &wrote);
 	if (err != BEET_OK) return err;
@@ -668,7 +684,9 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	}
 
 	/* search pointer to next node */
-	pge = beet_node_searchPageid(src, tree->ksize, key, tree->cmp);
+	pge = beet_node_searchPageid(src, tree->ksize,
+	                             key, tree->cmp,
+	                                  tree->rsc);
 	if (pge == BEET_PAGE_NULL) {
 		if (mode == READ) {
 			releaseNode(tree, src); free(src);

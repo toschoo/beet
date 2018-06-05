@@ -66,6 +66,24 @@ struct beet_state_t {
 };
 
 /* ------------------------------------------------------------------------
+ * Init config: sets all values to zero/NULL
+ * ------------------------------------------------------------------------
+ */
+void beet_config_init(beet_config_t *cfg) {
+	if (cfg == NULL) return;
+	memset(cfg, 0, sizeof(beet_config_t));
+}
+
+/* ------------------------------------------------------------------------
+ * Init config: sets all values to zero/NULL
+ * ------------------------------------------------------------------------
+ */
+void beet_open_config_init(beet_open_config_t *cfg) {
+	if (cfg == NULL) return;
+	memset(cfg, 0, sizeof(beet_open_config_t));
+}
+
+/* ------------------------------------------------------------------------
  * Macro: index not NULL
  * ------------------------------------------------------------------------
  */
@@ -175,6 +193,22 @@ static inline beet_err_t writecfg(FILE *f, beet_config_t *cfg) {
 			return BEET_OSERR_WRITE;
 		}
 	}
+	if (cfg->rscinit == NULL) {
+		m = 0;
+		if (fwrite(&m, 1, 1, f) != 1) return BEET_OSERR_WRITE;
+	} else {
+		if (fwrite(cfg->rscinit, strlen(cfg->rscinit)+1, 1, f) != 1) {
+			return BEET_OSERR_WRITE;
+		}
+	}
+	if (cfg->rscdest == NULL) {
+		m = 0;
+		if (fwrite(&m, 1, 1, f) != 1) return BEET_OSERR_WRITE;
+	} else {
+		if (fwrite(cfg->rscdest, strlen(cfg->rscdest)+1, 1, f) != 1) {
+			return BEET_OSERR_WRITE;
+		}
+	}
 	return BEET_OK;
 }
 
@@ -232,6 +266,7 @@ static inline beet_err_t readcfg(FILE *f, size_t sz, beet_config_t *cfg) {
 
 	s = sz - i;
 
+	/* get path to subindex */
 	buf = malloc(s);
 	if (buf == NULL) return BEET_ERR_NOMEM;
 
@@ -251,12 +286,17 @@ static inline beet_err_t readcfg(FILE *f, size_t sz, beet_config_t *cfg) {
 		}
 		strcpy(cfg->subPath, buf);
 	}
+
+	/* get name of compare function */
 	i++; k=i;
 	for(;buf[i] != 0 && i < s; i++) {}
 	if (i > s) {
 		free(buf);
-		free(cfg->subPath);
-		cfg->subPath = NULL;
+		if (cfg->subPath != NULL) {
+			free(cfg->subPath);
+			cfg->subPath = NULL;
+		}
+		cfg->compare = NULL;
 		return BEET_ERR_BADCFG;
 	}
 	if (i==k) cfg->compare = NULL;
@@ -264,11 +304,79 @@ static inline beet_err_t readcfg(FILE *f, size_t sz, beet_config_t *cfg) {
 		cfg->compare = malloc(i-k+1);
 		if (cfg->compare == NULL) {
 			free(buf);
-			free(cfg->subPath);
-			cfg->subPath = NULL;
+			if (cfg->subPath != NULL) {
+				free(cfg->subPath);
+				cfg->subPath = NULL;
+			}
 			return BEET_ERR_NOMEM;
 		}
 		strcpy(cfg->compare, buf+k);
+	}
+
+	/* get name of rscinit function */
+	i++; k=i;
+	for(;buf[i] != 0 && i < s; i++) {}
+	if (i > s) {
+		free(buf);
+		if (cfg->subPath != NULL) {
+			free(cfg->subPath); cfg->subPath = NULL;
+		}
+		if (cfg->compare != NULL) {
+			free(cfg->compare); cfg->compare = NULL;
+		}
+		cfg->rscinit = NULL;
+		return BEET_ERR_BADCFG;
+	}
+	if (i==k) cfg->rscinit = NULL;
+	else {
+		cfg->rscinit = malloc(i-k+1);
+		if (cfg->rscinit == NULL) {
+			free(buf);
+			if (cfg->subPath != NULL) {
+				free(cfg->subPath); cfg->subPath = NULL;
+			}
+			if (cfg->compare != NULL) {
+				free(cfg->compare); cfg->compare = NULL;
+			}
+			return BEET_ERR_NOMEM;
+		}
+		strcpy(cfg->rscinit, buf+k);
+	}
+
+	/* get name of rscdest function */
+	i++; k=i;
+	for(;buf[i] != 0 && i < s; i++) {}
+	if (i > s) {
+		free(buf);
+		if (cfg->subPath != NULL) {
+			free(cfg->subPath); cfg->subPath = NULL;
+		}
+		if (cfg->compare != NULL) {
+			free(cfg->compare); cfg->compare = NULL;
+		}
+		if (cfg->rscinit != NULL) {
+			free(cfg->rscinit); cfg->rscinit = NULL;
+		}
+		cfg->rscdest = NULL;
+		return BEET_ERR_BADCFG;
+	}
+	if (i==k) cfg->rscdest = NULL;
+	else {
+		cfg->rscdest = malloc(i-k+1);
+		if (cfg->rscdest == NULL) {
+			free(buf);
+			if (cfg->subPath != NULL) {
+				free(cfg->subPath); cfg->subPath = NULL;
+			}
+			if (cfg->compare != NULL) {
+				free(cfg->compare); cfg->compare = NULL;
+			}
+			if (cfg->rscinit != NULL) {
+				free(cfg->rscinit); cfg->rscinit = NULL;
+			}
+			return BEET_ERR_NOMEM;
+		}
+		strcpy(cfg->rscdest, buf+k);
 	}
 	free(buf);
 	return BEET_OK;
@@ -519,8 +627,45 @@ static inline beet_err_t getcmp(beet_config_t      *fcfg,
 	if (fcfg->compare == NULL) return BEET_ERR_INVALID;
 	*cmp = dlsym(handle, fcfg->compare);
 	if (*cmp == NULL) {
-		fprintf(stderr, "NO SYMBOL: %s\n", dlerror());
+		fprintf(stderr, "NO SYMBOL for %s: %s\n",
+		               fcfg->compare, dlerror());
 		return BEET_ERR_NOSYM;
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: get rsc
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getrsc(beet_config_t      *fcfg,
+                                beet_open_config_t *ocfg,
+                                void               *handle,
+                                beet_rscinit_t    *rscinit,
+                                beet_rscdest_t    *rscdest) {
+	*rscinit = NULL; *rscdest = NULL;
+
+	if (ocfg->rscinit != NULL) *rscinit = ocfg->rscinit;
+	if (ocfg->rscdest != NULL) *rscinit = ocfg->rscdest;
+	if (*rscinit != NULL && *rscdest != NULL) return BEET_OK;
+
+	if (handle == NULL) return BEET_OK;
+	
+	if (fcfg->rscinit != NULL) {
+		*rscinit = dlsym(handle, fcfg->rscinit);
+		if (*rscinit == NULL) {
+			fprintf(stderr, "NOT SYMBOL for %s: %s\n",
+			                fcfg->rscinit, dlerror());
+			return BEET_ERR_NOSYM;
+		}
+	}
+	if (fcfg->rscdest != NULL) {
+		*rscdest = dlsym(handle, fcfg->rscdest);
+		if (*rscdest == NULL) {
+			fprintf(stderr, "NOT SYMBOL for %s: %s\n",
+			                fcfg->rscdest, dlerror());
+			return BEET_ERR_NOSYM;
+		}
 	}
 	return BEET_OK;
 }
@@ -607,7 +752,9 @@ static beet_err_t openIndex(char *path, void *handle,
 	beet_rider_t *lfs, *nolfs;
 	beet_config_t fcfg;
 	beet_ins_t    *ins;
-	beet_compare_t cmp;
+	beet_compare_t cmp=NULL;
+	beet_rscinit_t rinit=NULL;
+	beet_rscdest_t rdst=NULL;
 	beet_err_t     err;
 
 	if (idx == NULL) return BEET_ERR_INVALID;
@@ -616,6 +763,8 @@ static beet_err_t openIndex(char *path, void *handle,
 	if (path == NULL) return BEET_ERR_INVALID;
 	if (handle == NULL && ocfg == NULL) return BEET_ERR_INVALID;
 	if (strnlen(path, 4097) > 4096) return BEET_ERR_TOOBIG;
+
+	memset(&fcfg, 0, sizeof(beet_config_t));
 
 	err = getcfg(path, &fcfg);
 	if (err != BEET_OK) return err;
@@ -692,6 +841,17 @@ static beet_err_t openIndex(char *path, void *handle,
 		return err;
 	}
 
+	/* get rsc */
+	err = getrsc(&fcfg, ocfg, handle, &rinit, &rdst);
+	if (err != BEET_OK) {
+		free(ins);
+		beet_rider_destroy(lfs); free(lfs);
+		beet_rider_destroy(nolfs); free(nolfs);
+		beet_config_destroy(&fcfg);
+		beet_index_close(sidx);
+		return err;
+	}
+
 	/* allocate tree */
 	sidx->tree = calloc(1,sizeof(beet_tree_t));
 	if (sidx->tree == NULL) {
@@ -711,7 +871,8 @@ static beet_err_t openIndex(char *path, void *handle,
 	                     fcfg.dataSize,
 	                     nolfs, lfs,
 	                     sidx->roof,
-	                     cmp, ins);
+	                     cmp,rinit,rdst,
+                             ins);
 	if (err != BEET_OK) {
 		free(ins);
 		beet_rider_destroy(lfs); free(lfs);
@@ -858,14 +1019,16 @@ static beet_err_t getdata(struct beet_index_t *idx,
 	}
 	if (err != BEET_OK) return err;
 
-	slot = beet_node_search(node, idx->tree->ksize, key,
-	                              idx->tree->cmp);
+	slot = beet_node_search(node, idx->tree->ksize,
+	                        key,  idx->tree->cmp,
+	                              idx->tree->rsc);
 	if (slot < 0 || slot > idx->tree->lsize) {
 		beet_tree_release(idx->tree, node); free(node);
 		return BEET_ERR_NOSLOT;
 	}
-	if (!beet_node_equal(node, slot, idx->tree->ksize, key,
-	                                 idx->tree->cmp)) {
+	if (!beet_node_equal(node, slot, idx->tree->ksize,
+	                           key,  idx->tree->cmp,
+	                                 idx->tree->rsc)) {
 		beet_tree_release(idx->tree, node); free(node);
 		return BEET_ERR_KEYNOF;
 	}
@@ -953,7 +1116,7 @@ beet_err_t beet_index_get(beet_index_t  idx,
                           uint16_t      flags,
                           const void   *key,
                           void       **data) {
-	beet_err_t err;
+	beet_err_t err, err2;
 
 	IDXNULL();
 	STATENULL();
@@ -969,11 +1132,11 @@ beet_err_t beet_index_get(beet_index_t  idx,
 	} else {
 		err = getdata(TOIDX(idx), TOSTATE(state), key, data);
 	}
-	if (err != BEET_OK) return err;
 	if (flags & BEET_FLAGS_RELEASE) {
-		err = staterelease(TOSTATE(state));
-		if (err != BEET_OK) return err;
+		err2 = staterelease(TOSTATE(state));
+		if (err2 != BEET_OK) return err2;
 	} 
+	if (err != BEET_OK) return err;
 	return BEET_OK;
 }
 
@@ -996,7 +1159,6 @@ beet_err_t beet_index_get2(beet_index_t  idx,
 	err = beet_index_get(idx, TOSTATE(state), flags |
 	                 BEET_FLAGS_SUBTREE, key2, data);
 	if (err != BEET_OK) return err;
-
 	return BEET_OK;
 }
 

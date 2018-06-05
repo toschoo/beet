@@ -217,12 +217,13 @@ static inline int32_t linsearch(char          *keys,
                                 uint32_t       min, 
                                 uint32_t       max,
                                 beet_compare_t cmp,
-                                char dir)
+                                void          *rsc,
+                                char           dir)
 {
 	if (dir < 0) {
 		int i = (int)min+1;
 		while(i >= 0) {
-			char r = cmp(key,keys+i*ksize);
+			char r = cmp(key,keys+i*ksize,rsc);
 			if (r == BEET_CMP_EQUAL) return i;
 			if (r == BEET_CMP_GREATER) return i+1;
 			i--;
@@ -231,7 +232,7 @@ static inline int32_t linsearch(char          *keys,
 	} else {
 		int i = (int)min;
 		while(i < max) {
-			char r = cmp(key,keys+i*ksize);
+			char r = cmp(key,keys+i*ksize,rsc);
 			if (r == BEET_CMP_EQUAL) return i;
 			if (r == BEET_CMP_LESS) return i;
 			i++;
@@ -260,19 +261,20 @@ static inline int32_t binsearch(char          *keys,
                                 uint32_t       max,
                                 uint32_t       step,
                                 beet_compare_t cmp,
+                                void          *rsc,
                                 char           dir)
 {
 	int h = max/step;
 	if (h <= 1) {
-		return linsearch(keys, key, ksize, min, max, cmp, dir);
+		return linsearch(keys, key, ksize, min, max, cmp, rsc, dir);
 	}
 	int32_t i = (int)min + (int)(dir*h);
-	char r = cmp(key,keys+i*ksize);
+	char r = cmp(key,keys+i*ksize,rsc);
 	if (r == BEET_CMP_EQUAL) return i;
 	if (r == BEET_CMP_LESS) {
-		return binsearch(keys,key,ksize,i,max,step*2,cmp,-1);
+		return binsearch(keys,key,ksize,i,max,step*2,cmp,rsc,-1);
 	}
-	return binsearch(keys,key,ksize,i,max,step*2,cmp,1);
+	return binsearch(keys,key,ksize,i,max,step*2,cmp,rsc,1);
 }
 
 /* ------------------------------------------------------------------------
@@ -286,6 +288,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
                          const void       *key,
                          const void      *data,
                          beet_compare_t    cmp,
+                         void             *rsc,
                          beet_ins_t       *ins,
                          char              upd,
                          char           *wrote) 
@@ -298,11 +301,12 @@ beet_err_t beet_node_add(beet_node_t     *node,
 
 	/* find slot */
 	int32_t slot = binsearch(node->keys, key, ksize,
-	                       0, node->size, 2, cmp, 1);
+	                  0, node->size, 2, cmp, rsc, 1);
 	if (slot < 0) return BEET_ERR_NOSLOT;
 
 	/* if we already have that key: add the data */
-	if (slot < node->size && beet_node_equal(node,slot,ksize,key,cmp)) {
+	if (slot < node->size &&
+	    beet_node_equal(node,slot,ksize,key,cmp,rsc)) {
 		if (node->leaf) {
 			*wrote = 1;
 			return ad3ata(node, dsize, slot, data, upd, ins);
@@ -327,12 +331,13 @@ beet_err_t beet_node_add(beet_node_t     *node,
 beet_pageid_t beet_node_searchPageid(beet_node_t  *node,
                                      uint32_t     keysz,
                                      const void    *key,
-                                     beet_compare_t cmp) {
+                                     beet_compare_t cmp,
+                                     void          *rsc) {
 	int idx = binsearch(node->keys, key, keysz,
-	                  0, node->size, 2, cmp, 1);
+	            0, node->size, 2, cmp, rsc, 1);
 	if (idx >= 0 && idx <= node->size) {
 		if (idx < node->size &&
-		    beet_node_equal(node, idx, keysz, key, cmp)) idx++;
+		    beet_node_equal(node, idx, keysz, key, cmp, rsc)) idx++;
 		return beet_node_getPageid(node,idx);
 	}
 	return BEET_PAGE_NULL;
@@ -345,8 +350,10 @@ beet_pageid_t beet_node_searchPageid(beet_node_t  *node,
 int32_t beet_node_search(beet_node_t  *node,
                          uint32_t     keysz,
                          const void    *key,
-                         beet_compare_t cmp) {
-	return binsearch(node->keys, key, keysz, 0, node->size, 2, cmp, 1);
+                         beet_compare_t cmp,
+                         void          *rsc) {
+	return binsearch(node->keys, key, keysz,
+	         0, node->size, 2, cmp, rsc, 1);
 }
 
 /* ------------------------------------------------------------------------
@@ -357,6 +364,7 @@ char beet_node_equal(beet_node_t *node,
                      uint32_t     slot,
                      uint32_t    keysz,
                      const void   *key,
-                    beet_compare_t cmp) {
-	return (cmp(key,node->keys+slot*keysz) == BEET_CMP_EQUAL);
+                    beet_compare_t cmp,
+                    void          *rsc) {
+	return (cmp(key,node->keys+slot*keysz,rsc) == BEET_CMP_EQUAL);
 }

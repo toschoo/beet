@@ -46,7 +46,15 @@ typedef struct {
 	int32_t  leafCacheSize; /* cache size for leaf nodes        */
 	int32_t  intCacheSize;  /* cache size for internal nodes    */
 	char    *compare;       /* name of compare function         */
+	char    *rscinit;       /* name of rsc init function        */
+	char    *rscdest;       /* name of rsc destroyer function   */
 } beet_config_t;
+
+/* ------------------------------------------------------------------------
+ * Init config: sets all values to zero/NULL
+ * ------------------------------------------------------------------------
+ */
+void beet_config_init(beet_config_t *cfg);
 
 /* ------------------------------------------------------------------------
  * Index Types:
@@ -80,10 +88,18 @@ void beet_config_destroy(beet_config_t *cfg);
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	int32_t  leafCacheSize; /* cache size for leaf nodes        */
-	int32_t   intCacheSize; /* cache size for internal nodes    */
-	beet_compare_t compare; /* point to compare function        */
+	int32_t  leafCacheSize; /* cache size for leaf nodes         */
+	int32_t   intCacheSize; /* cache size for internal nodes     */
+	beet_compare_t compare; /* pointer to compare function       */
+	beet_rscinit_t rscinit; /* pointer to rsc init function      */
+	beet_rscinit_t rscdest; /* pointer to rsc destroyer function */
 } beet_open_config_t;
+
+/* ------------------------------------------------------------------------
+ * Init config: sets all values to zero/NULL
+ * ------------------------------------------------------------------------
+ */
+void beet_open_config_init(beet_open_config_t *cfg);
 
 /* ------------------------------------------------------------------------
  * Destroy open config

@@ -65,7 +65,7 @@ int createFile(char *path, char *name) {
 #define DEREF(x) \
 	(*(int*)x)
 
-char compare(const void *one, const void *two) {
+char compare(const void *one, const void *two, void *compare) {
 	if (DEREF(one) < DEREF(two)) return BEET_CMP_LESS;
 	if (DEREF(one) > DEREF(two)) return BEET_CMP_GREATER;
 	return BEET_CMP_EQUAL;
@@ -104,7 +104,7 @@ int initTree(beet_tree_t *tree, char *base,
 	if (initRider(lfs, base, name2) != 0) return -1;
 
 	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, DATASZ,
-	                         nlfs, lfs, roof, &compare, ins);
+	             nlfs, lfs, roof, &compare, NULL, NULL, ins);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot initialise rider");
 		return -1;
@@ -145,12 +145,12 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 
 		// fprintf(stderr, "got node %u for %d\n", node->self, k);
 
-		slot = beet_node_search(node, KEYSZ, &k, &compare);
+		slot = beet_node_search(node, KEYSZ, &k, &compare, NULL);
 		if (slot < 0) {
 			fprintf(stderr, "unexpected result: %d\n", k);
 			return -1;
 		}
-		if (!beet_node_equal(node, slot, KEYSZ, &k, &compare)) {
+		if (!beet_node_equal(node, slot, KEYSZ, &k, &compare, NULL)) {
 			fprintf(stderr, "key not found: %d in %u (%d - %d)\n", k,
 					node->self,
 			                (*(int*)node->keys),

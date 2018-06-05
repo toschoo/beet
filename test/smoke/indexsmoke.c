@@ -22,7 +22,7 @@ beet_config_t config;
 #define DEREF(x) \
 	(*(int*)x)
 
-char compare(const void *one, const void *two) {
+char compare(const void *one, const void *two, void *ignore) {
 	if (DEREF(one) < DEREF(two)) return BEET_CMP_LESS;
 	if (DEREF(one) > DEREF(two)) return BEET_CMP_GREATER;
 	return BEET_CMP_EQUAL;
@@ -47,6 +47,8 @@ beet_index_t openIndex(char *path) {
 	cfg.leafCacheSize = BEET_CACHE_IGNORE;
 	cfg.intCacheSize = BEET_CACHE_IGNORE;
 	cfg.compare = &compare;
+	cfg.rscinit = NULL;
+	cfg.rscdest = NULL;
 
 	err = beet_index_open("rsc/idx10", NULL, &cfg, &idx);
 	if (err != BEET_OK) {
@@ -177,6 +179,8 @@ int main() {
 	config.dataSize = 4;
 	config.subPath = NULL;
 	config.compare = NULL;
+	config.rscinit = NULL;
+	config.rscdest = NULL;
 
 	if (createDropIndex() != 0) {
 		fprintf(stderr, "createDropIndex failed\n");
