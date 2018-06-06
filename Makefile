@@ -39,16 +39,19 @@ OBJ = $(SRC)/lock.o   \
       $(SRC)/node.o   \
       $(SRC)/tree.o   \
       $(SRC)/config.o \
+      $(SRC)/iter.o   \
       $(SRC)/index.o
 
-DEP = $(HDR)/types.h  \
-      $(SRC)/lock.h   \
-      $(SRC)/page.h   \
-      $(SRC)/rider.h  \
-      $(SRC)/node.h   \
-      $(SRC)/ins.h    \
-      $(SRC)/tree.h   \
-      $(HDR)/config.h \
+DEP = $(HDR)/types.h   \
+      $(SRC)/lock.h    \
+      $(SRC)/page.h    \
+      $(SRC)/rider.h   \
+      $(SRC)/node.h    \
+      $(SRC)/ins.h     \
+      $(SRC)/tree.h    \
+      $(SRC)/iterimp.h \
+      $(HDR)/config.h  \
+      $(HDR)/iter.h    \
       $(HDR)/index.h
 
 default:	lib 
@@ -67,7 +70,8 @@ smoke:	$(SMK)/pagesmoke     \
 	$(SMK)/contreesmoke  \
 	$(SMK)/indexsmoke    \
 	$(SMK)/hostsmoke     \
-	$(SMK)/rscsmoke
+	$(SMK)/rscsmoke      \
+	$(SMK)/rangesmoke
 
 stress: $(STRS)/riderstress
 
@@ -188,6 +192,14 @@ $(SMK)/rscsmoke:	lib $(SMK)/rscsmoke.o $(COM)/math.o \
 			                    $(COM)/math.o      \
 			                    $(libs) -lbeet
 
+$(SMK)/rangesmoke:	lib $(SMK)/rangesmoke.o $(COM)/math.o \
+			$(OUTLIB)/libcmp.so
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/rangesmoke   \
+			                    $(SMK)/rangesmoke.o \
+			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
 			$(LNKMSG)
@@ -227,6 +239,7 @@ clean:
 	rm -f $(SMK)/indexsmoke
 	rm -f $(SMK)/hostsmoke
 	rm -f $(SMK)/rscsmoke
+	rm -f $(SMK)/rangesmoke
 	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 	rm -f $(OUTLIB)/libcmp.so

@@ -57,6 +57,15 @@ typedef struct {
 } beet_pair_t;
 
 /* -----------------------------------------------------------------------
+ * Direction: ascending or descending
+ * -----------------------------------------------------------------------
+ */
+typedef char beet_dir_t;
+
+#define BEET_DIR_ASC  0
+#define BEET_DIR_DESC 1
+
+/* -----------------------------------------------------------------------
  * Return a constant string describing the error
  * -----------------------------------------------------------------------
  */
@@ -102,7 +111,11 @@ const char *beet_oserrdesc();
 #define BEET_ERR_UNKNTYP 27
 #define BEET_ERR_NOTSUPP 28
 #define BEET_ERR_KEYNOF  29
-#define BEET_ERR_NOSYM   30
+#define BEET_ERR_EOF     30
+#define BEET_ERR_NOSYM   31
+#define BEET_ERR_NOITER  32
+#define BEET_ERR_NOSUB   33
+#define BEET_ERR_NOTLEAF 34
 #define BEET_ERR_TEST   199
 #define BEET_ERR_PANIC  999
 

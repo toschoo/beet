@@ -80,6 +80,20 @@ void beet_open_config_init(beet_open_config_t *cfg) {
 }
 
 /* ------------------------------------------------------------------------
+ * Init config: sets all values to zero/NULL
+ * ------------------------------------------------------------------------
+ */
+void beet_open_config_ignore(beet_open_config_t *cfg) {
+	if (cfg == NULL) return;
+
+	cfg->leafCacheSize = BEET_CACHE_IGNORE;
+	cfg->intCacheSize = BEET_CACHE_IGNORE;
+	cfg->compare = NULL;
+	cfg->rscinit = NULL;
+	cfg->rscdest = NULL;
+}
+
+/* ------------------------------------------------------------------------
  * Destroy config
  * ------------------------------------------------------------------------
  */

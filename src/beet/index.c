@@ -24,10 +24,12 @@
  * - map, fold?
  * ========================================================================
  */
-#include <beet/index.h>
 #include <beet/rider.h>
 #include <beet/node.h>
 #include <beet/tree.h>
+#include <beet/iterimp.h>
+#include <beet/iter.h>
+#include <beet/index.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -792,8 +794,56 @@ beet_err_t beet_index_delete(beet_index_t  idx,
  * range scan
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_range(beet_index_t   idx,
+beet_err_t beet_index_range(beet_index_t    idx,
                             beet_state_t  state,
-                            uint16_t      flags,
                             beet_range_t *range,
-                            beet_iter_t   iter);
+                            beet_dir_t      dir,
+                            beet_iter_t   *iter) {
+	beet_err_t   err;
+	beet_iter_t iter2=NULL;
+	void *from, *to;
+
+	if (range == NULL) {
+		from = NULL; to = NULL;
+	} else {
+		from = range->fromkey;
+		to   = range->tokey;
+	}
+
+	/* iter from state ? */
+	if (state != NULL &&
+	    TOSTATE(state)->root != NULL &&
+	    idx->subidx != NULL) {
+		*iter = calloc(1, sizeof(beet_iter_t));
+		if (*iter == NULL) return BEET_ERR_NOMEM;
+		err = beet_iter_init(*iter, NULL,
+		                     idx->subidx->tree,
+		                     TOSTATE(state)->root,
+		                     from, to, dir);
+		if (err != BEET_OK) {
+			free(*iter); *iter = NULL;
+			return err;
+		}
+		return BEET_OK;
+	}
+
+	/* if we have a subidx, we create a subiter */
+	if (idx->subidx != NULL) {
+		err = beet_index_range(idx->subidx, NULL, NULL,
+		                       BEET_DIR_ASC, &iter2);
+		if (err != BEET_OK) return err;
+	}
+
+	/* create main iter */
+	*iter = calloc(1, sizeof(beet_iter_t));
+	if (*iter == NULL) return BEET_ERR_NOMEM;
+	err = beet_iter_init(*iter, iter2,
+		             idx->tree,
+	                    &idx->root,
+		             from,to,dir);
+	if (err != BEET_OK) {
+		free(*iter); *iter = NULL;
+		return err;
+	}
+	return BEET_OK;
+}

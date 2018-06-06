@@ -29,6 +29,7 @@
 
 #include <beet/types.h>
 #include <beet/config.h>
+#include <beet/iter.h>
 
 /* ------------------------------------------------------------------------
  * The BEET Index
@@ -185,18 +186,12 @@ typedef struct {
 } beet_range_t;
 
 /* ------------------------------------------------------------------------
- * iterator
- * ------------------------------------------------------------------------
- */
-typedef struct beet_iter_t *beet_iter_t;
-
-/* ------------------------------------------------------------------------
  * range scan
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_range(beet_index_t  idx,
                             beet_state_t  state,
-                            uint16_t      flags,
                             beet_range_t *range,
-                            beet_iter_t   iter);
+                            beet_dir_t    dir,
+                            beet_iter_t  *iter);
 #endif

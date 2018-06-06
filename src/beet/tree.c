@@ -843,20 +843,142 @@ beet_err_t beet_tree_get(beet_tree_t   *tree,
 }
 
 /* ------------------------------------------------------------------------
+ * Follow down
+ * ------------------------------------------------------------------------
+ */
+#define LEFT  0
+#define RIGHT 1
+static beet_err_t follow(beet_tree_t     *tree,
+                         beet_node_t      *src,
+                         beet_node_t     **trg,
+                         char              dir) {
+	beet_err_t     err;
+	beet_pageid_t *pge;
+
+	if (src->leaf) {
+		*trg = src; return BEET_OK;
+	}
+
+	pge = dir==LEFT?(beet_pageid_t*)src->kids:
+		        (beet_pageid_t*)(src->kids+
+	                                 src->size*
+	                                 tree->dsize);
+
+	err = getNode(tree, *pge, READ, trg);
+	if (err != BEET_OK) {
+		releaseNode(tree, src); free(src);
+		return err;
+	}
+	err = releaseNode(tree, src); free(src);
+	if (err != BEET_OK) return err;
+
+	return follow(tree, *trg, trg, dir);
+}
+
+/* ------------------------------------------------------------------------
  * Get the leftmost node
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_left(beet_tree_t  *tree,
-                          beet_pageid_t root,
-                          beet_node_t **node);
+beet_err_t beet_tree_left(beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          beet_node_t  **node) {
+	beet_err_t   err;
+	beet_err_t  err2;
+	beet_node_t *tmp;
+	char lock = 1;
+
+	LOCK(READ);
+
+	err = getNode(tree, *root, READ, &tmp);
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
+
+	UNLOCK(READ, &lock);
+
+	err = follow(tree, tmp, node, LEFT);
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
+	return BEET_OK;
+}
 
 /* ------------------------------------------------------------------------
  * Get the rightmost node
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_right(beet_tree_t  *tree,
-                           beet_pageid_t root,
-                           beet_node_t **node);
+beet_err_t beet_tree_right(beet_tree_t   *tree,
+                           beet_pageid_t *root,
+                           beet_node_t  **node) {
+	beet_err_t   err;
+	beet_err_t  err2;
+	beet_node_t *tmp;
+	char lock = 1;
+
+	LOCK(READ);
+
+	err = getNode(tree, *root, READ, &tmp);
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
+
+	UNLOCK(READ, &lock);
+
+	err = follow(tree, tmp, node, RIGHT);
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: move
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t move(beet_tree_t *tree,
+                              beet_node_t  *cur,
+                              beet_pageid_t pge,
+                              beet_node_t **node) {
+	beet_err_t err;
+
+	TREENULL();
+
+	if (cur == NULL) return BEET_ERR_NONODE;
+	if (!cur->leaf) return BEET_ERR_NOTLEAF;
+
+	if (pge == BEET_PAGE_NULL) return BEET_ERR_EOF;
+
+	err = getNode(tree, toLeaf(pge), READ, node);
+	if (err != BEET_OK) return err;
+
+	return BEET_OK;
+} 
+
+/* ------------------------------------------------------------------------
+ * Get next
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_next(beet_tree_t  *tree,
+                          beet_node_t   *cur,
+                          beet_node_t **next) 
+{
+	return move(tree, cur, cur->next, next);
+}
+
+/* ------------------------------------------------------------------------
+ * Get prev
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_prev(beet_tree_t  *tree,
+                          beet_node_t   *cur,
+                          beet_node_t **prev)
+{
+	return move(tree, cur, cur->prev, prev);
+}
 
 /* ------------------------------------------------------------------------
  * Release a node obtained by get, left or right

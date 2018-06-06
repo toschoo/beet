@@ -66,8 +66,16 @@ const char *beet_errdesc(beet_err_t err) {
 		return "not supported";
 	case BEET_ERR_KEYNOF:
 		return "key not found";
+	case BEET_ERR_EOF:
+		return "end of file";
 	case BEET_ERR_NOSYM:
 		return "symbol not found";
+	case BEET_ERR_NOITER:
+		return "iter parameter is NULL";
+	case BEET_ERR_NOSUB:
+		return "no subtree in iterator";
+	case BEET_ERR_NOTLEAF:
+		return "leaf operation on nonleaf";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:

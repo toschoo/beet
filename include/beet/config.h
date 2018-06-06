@@ -131,6 +131,12 @@ typedef struct {
 void beet_open_config_init(beet_open_config_t *cfg);
 
 /* ------------------------------------------------------------------------
+ * Init open config to all ignore (values are taken from create config)
+ * ------------------------------------------------------------------------
+ */
+void beet_open_config_ignore(beet_open_config_t *cfg);
+
+/* ------------------------------------------------------------------------
  * Destroy open config
  * ------------------------------------------------------------------------
  */

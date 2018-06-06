@@ -101,20 +101,36 @@ beet_err_t beet_tree_get(beet_tree_t   *tree,
  * Get the leftmost node
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_left(beet_tree_t  *tree,
-                          beet_pageid_t root,
-                          beet_node_t **node);
+beet_err_t beet_tree_left(beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          beet_node_t  **node);
 
 /* ------------------------------------------------------------------------
  * Get the rightmost node
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_right(beet_tree_t  *tree,
-                           beet_pageid_t root,
-                           beet_node_t **node);
+beet_err_t beet_tree_right(beet_tree_t   *tree,
+                           beet_pageid_t *root,
+                           beet_node_t  **node);
 
 /* ------------------------------------------------------------------------
- * Release a node obtained by get, left or right
+ * Get next
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_next(beet_tree_t  *tree,
+                          beet_node_t   *cur,
+                          beet_node_t **next);
+
+/* ------------------------------------------------------------------------
+ * Get prev
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_prev(beet_tree_t  *tree,
+                          beet_node_t   *cur,
+                          beet_node_t **prev);
+
+/* ------------------------------------------------------------------------
+ * Release a node obtained by get, left, right, etc.
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_tree_release(beet_tree_t *tree,
