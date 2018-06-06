@@ -27,6 +27,7 @@
 #include <beet/types.h>
 #include <beet/node.h>
 #include <beet/tree.h>
+#include <beet/iter.h>
 
 #include <stdint.h>
 
@@ -42,14 +43,11 @@ struct beet_iter_t {
 	beet_dir_t         dir;
 };
 
-beet_err_t beet_iter_init(struct beet_iter_t *iter,
-                          struct beet_iter_t *sub,
-                          beet_tree_t        *tree,
-                          beet_pageid_t      *root,
-                          const void         *from,
-                          const void         *to,
-                          char                dir);
-
-void beet_iter_destroy(struct beet_iter_t *iter);
-
+beet_err_t beet_iter_init(beet_iter_t    iter,
+                          beet_iter_t    sub,
+                          beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          const void    *from,
+                          const void    *to,
+                          char           dir);
 #endif

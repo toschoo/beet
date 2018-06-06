@@ -91,6 +91,38 @@ int testDoesExist(beet_index_t idx, int hi) {
 }
 
 int rangeAll(beet_index_t idx, int hi) {
+	beet_iter_t iter;
+	beet_err_t   err;
+	int *k, *d, o=-1, c=0;
+
+	err = beet_index_range(idx, NULL, NULL, 
+	                  BEET_DIR_ASC, &iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot create iter");
+		return -1;
+	}
+	while((err = beet_iter_move(iter, (void**)&k,
+	                                  (void**)&d)) == BEET_OK) {
+		// fprintf(stderr, "%d: %d\n", *k, *d);
+		o++; c++;
+		if (*k != o) {
+			fprintf(stderr,
+			"ERROR: not ascending: %d - %d\n", o, *k);
+			beet_iter_destroy(iter);
+			return -1;
+		}
+	}
+	if (c != hi) {
+		fprintf(stderr,
+		"range incomplete or too big: %d - %d\n", c, hi);
+		beet_iter_destroy(iter); return -1;
+	}
+	if (err != BEET_ERR_EOF) {
+		errmsg(err, "could not move iter");
+		beet_iter_destroy(iter);
+		return -1;
+	}
+	beet_iter_destroy(iter);
 	return 0;
 }
 
@@ -149,6 +181,10 @@ int main() {
 		fprintf(stderr, "testDoesExist 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (rangeAll(idx, 13) != 0) {
+		fprintf(stderr, "rangeAll 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 
 	/* test with 64 (key,value) pairs */
 	if (writeRange(idx, 13, 64) != 0) {
@@ -157,6 +193,10 @@ int main() {
 	}
 	if (testDoesExist(idx, 64) != 0) {
 		fprintf(stderr, "testDoesExist 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, 64) != 0) {
+		fprintf(stderr, "rangeAll 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
@@ -178,13 +218,34 @@ int main() {
 		fprintf(stderr, "testDoesExist 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (rangeAll(idx, 99) != 0) {
+		fprintf(stderr, "rangeAll 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	/* test with 200 (key,value) pairs */
 	if (writeRange(idx, 99, 200) != 0) {
 		fprintf(stderr, "writeRange 99-200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	/* test with 200 (key,value) pairs */
 	if (testDoesExist(idx,200) != 0) {
 		fprintf(stderr, "testDoesExist 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, 200) != 0) {
+		fprintf(stderr, "rangeAll 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	/* test with 300 (key,value) pairs */
+	if (writeRange(idx, 150, 300) != 0) {
+		fprintf(stderr, "writeRange 150-300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testDoesExist(idx,300) != 0) {
+		fprintf(stderr, "testDoesExist 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, 300) != 0) {
+		fprintf(stderr, "rangeAll 300 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 

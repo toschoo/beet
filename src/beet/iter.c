@@ -24,20 +24,23 @@
 #include <beet/iter.h>
 #include <beet/iterimp.h>
 
+#define TOITER(x) \
+	((struct beet_iter_t*)x)
+
 /* ------------------------------------------------------------------------
  * Reset the iterator to start position
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_iter_init(struct beet_iter_t *iter,
-                          struct beet_iter_t *sub,
-                          beet_tree_t        *tree,
-                          beet_pageid_t      *root,
-                          const void         *from,
-                          const void         *to,
-                          beet_dir_t          dir) {
+beet_err_t beet_iter_init(beet_iter_t    iter,
+                          beet_iter_t    sub,
+                          beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          const void    *from,
+                          const void    *to,
+                          beet_dir_t     dir) {
 
 	if (iter == NULL) return BEET_ERR_NOITER;
-	if (tree == NULL) return BEET_ERR_NOITER;
+	if (tree == NULL) return BEET_ERR_NOTREE;
 
 	iter->tree = tree;
 	iter->root = root;
@@ -49,6 +52,20 @@ beet_err_t beet_iter_init(struct beet_iter_t *iter,
 	iter->node = NULL;
 
 	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Reset the iterator to start position
+ * ------------------------------------------------------------------------
+ */
+void beet_iter_destroy(beet_iter_t iter) {
+	if (iter == NULL) return;
+	if (iter->sub != NULL) beet_iter_destroy(iter->sub);
+	if (iter->node != NULL) {
+		beet_tree_release(iter->tree, iter->node);
+		free(iter->node); iter->node = NULL;
+	}
+	free(iter);
 }
 
 /* ------------------------------------------------------------------------
@@ -76,11 +93,14 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 	beet_err_t   err;
 	beet_node_t *tmp;
 
+	if (iter == NULL) return BEET_ERR_NOITER;
+
 	if (iter->level == 1) return beet_iter_move(iter->sub, key, data);
 
 	if (iter->node != NULL && iter->pos >= iter->node->size) {
 		err = beet_tree_next(iter->tree, iter->node, &tmp);
 		if (err != BEET_OK) return err;
+		iter->pos = 0;
 
 		err = beet_tree_release(iter->tree, iter->node);
 		free(iter->node); iter->node = tmp;

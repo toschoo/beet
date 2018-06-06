@@ -77,20 +77,6 @@ struct beet_state_t {
 	if (state == NULL) return BEET_ERR_INVALID;
 
 /* ------------------------------------------------------------------------
- * Macro: Convert beet_index_t to struct
- * ------------------------------------------------------------------------
- */
-#define TOIDX(x) \
-	((struct beet_index_t*)x)
-
-/* ------------------------------------------------------------------------
- * Macro: Convert beet_state_t to struct
- * ------------------------------------------------------------------------
- */
-#define TOSTATE(x) \
-	((struct beet_state_t*)x)
-
-/* ------------------------------------------------------------------------
  * Macro: clean state
  * ------------------------------------------------------------------------
  */
@@ -166,8 +152,8 @@ static inline beet_err_t mkroof(char *path) {
  * Helper: make root
  * ------------------------------------------------------------------------
  */
-static inline beet_err_t mkroot(struct beet_index_t *idx,
-                                char *path) {
+static inline beet_err_t mkroot(beet_index_t idx,
+                                char       *path) {
 	beet_err_t err;
 	struct stat st;
 	char *p;
@@ -197,7 +183,7 @@ static inline beet_err_t mkroot(struct beet_index_t *idx,
  * Helper: get roof
  * ------------------------------------------------------------------------
  */
-static inline beet_err_t getroof(struct beet_index_t *idx, char *path) {
+static inline beet_err_t getroof(beet_index_t idx, char *path) {
 	char *p;
 
 	p = malloc(strlen(path) + 6);
@@ -257,9 +243,9 @@ static inline beet_err_t getIntRider(beet_index_t   sidx,
  * Helper: get inserter
  * ------------------------------------------------------------------------
  */
-static inline beet_err_t getins(struct beet_index_t *idx,
-                                beet_config_t       *cfg,
-                                beet_ins_t         **ins) {
+static inline beet_err_t getins(beet_index_t   idx,
+                                beet_config_t *cfg,
+                                beet_ins_t   **ins) {
 	switch(cfg->indexType) {
 	case BEET_INDEX_NULL: *ins = NULL; return BEET_OK;
 	case BEET_INDEX_PLAIN:
@@ -352,7 +338,7 @@ static beet_err_t openIndex(char *path, void *handle,
                             beet_open_config_t *ocfg,
                             char          standalone,
                             beet_index_t       *idx) {
-	struct beet_index_t *sidx;
+	beet_index_t sidx;
 	beet_rider_t *lfs, *nolfs;
 	beet_config_t fcfg;
 	beet_ins_t    *ins;
@@ -514,8 +500,7 @@ beet_err_t beet_index_open(char *path, void *handle,
  * Close an index
  * ------------------------------------------------------------------------
  */
-void beet_index_close(beet_index_t uidx) {
-	struct beet_index_t *idx = (struct beet_index_t*)uidx;
+void beet_index_close(beet_index_t idx) {
 
 	if (idx == NULL) return;
 	if (idx->roof != NULL) {
@@ -538,8 +523,8 @@ void beet_index_close(beet_index_t uidx) {
  */
 beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data) {
 	IDXNULL();
-	return beet_tree_insert(TOIDX(idx)->tree,
-	                       &TOIDX(idx)->root, key, data);
+	return beet_tree_insert(idx->tree,
+	                       &idx->root, key, data);
 }
 
 /* ------------------------------------------------------------------------
@@ -549,8 +534,8 @@ beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data) {
  */
 beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data) {
 	IDXNULL();
-	return beet_tree_upsert(TOIDX(idx)->tree,
-	                       &TOIDX(idx)->root, key, data);
+	return beet_tree_upsert(idx->tree,
+	                       &idx->root, key, data);
 }
 
 /* ------------------------------------------------------------------------
@@ -566,7 +551,7 @@ beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
  * what to do when release fails (leaking memory?)
  * ------------------------------------------------------------------------
  */
-static inline beet_err_t staterelease(struct beet_state_t *state) {
+static inline beet_err_t staterelease(beet_state_t state) {
 	beet_err_t err;
 
 	for(int i=1; i>=0; i--) {
@@ -588,16 +573,17 @@ static inline beet_err_t staterelease(struct beet_state_t *state) {
  * Helper: get data
  * ------------------------------------------------------------------------
  */
-static beet_err_t getdata(struct beet_index_t *idx,
-                          struct beet_state_t *state,
-                          const void *key, void **data) {
+static beet_err_t getdata(beet_index_t idx,
+                          beet_state_t state,
+                          const void  *key,
+                          void       **data) {
 	beet_err_t    err;
 	beet_node_t *node;
 	int32_t      slot;
 
-	if (TOSTATE(state)->root != NULL) {
-		err = beet_tree_get(idx->tree, TOSTATE(state)->root,
-		                                        key, &node);
+	if (state->root != NULL) {
+		err = beet_tree_get(idx->tree, state->root,
+		                               key, &node);
 	} else {
 		err = beet_tree_get(idx->tree, &idx->root, key, &node);
 	}
@@ -643,10 +629,10 @@ beet_err_t beet_index_copy(beet_index_t idx, const void *key, void *data) {
 
 	CLEANSTATE(&state);
 
-	err = getdata(TOIDX(idx), &state, key, &tmp);
+	err = getdata(idx, &state, key, &tmp);
 	if (err != BEET_OK) return err;
 
-	memcpy(data, tmp, TOIDX(idx)->tree->dsize);
+	memcpy(data, tmp, idx->tree->dsize);
 
 	err = staterelease(&state);
 	if (err != BEET_OK) return err;
@@ -679,7 +665,7 @@ void beet_state_destroy(beet_state_t state) {
  */
 void beet_state_reinit(beet_state_t state) {
 	if (state == NULL) return;
-	CLEANSTATE(TOSTATE(state));
+	CLEANSTATE(state);
 }
 
 /* ------------------------------------------------------------------------
@@ -688,7 +674,7 @@ void beet_state_reinit(beet_state_t state) {
  */
 beet_err_t beet_state_release(beet_state_t state) {
 	STATENULL();
-	return staterelease(TOSTATE(state));
+	return staterelease(state);
 }
 
 /* ------------------------------------------------------------------------
@@ -706,18 +692,18 @@ beet_err_t beet_index_get(beet_index_t  idx,
 	STATENULL();
 
 	if (flags & BEET_FLAGS_SUBTREE) {
-		if (TOIDX(idx)->subidx == NULL) return BEET_ERR_INVALID;
-		if (TOSTATE(state)->root == NULL) return BEET_ERR_INVALID;
-		err = getdata(TOIDX(idx)->subidx,
-		              TOSTATE(state), key, data);
+		if (idx->subidx == NULL) return BEET_ERR_INVALID;
+		if (state->root == NULL) return BEET_ERR_INVALID;
+		err = getdata(idx->subidx,
+		              state, key, data);
 	} else if (flags & BEET_FLAGS_ROOT) {
-		err = getdata(TOIDX(idx), TOSTATE(state), key,
-		                 (void**)&TOSTATE(state)->root);
+		err = getdata(idx, state, key,
+		             (void**)&state->root);
 	} else {
-		err = getdata(TOIDX(idx), TOSTATE(state), key, data);
+		err = getdata(idx, state, key, data);
 	}
 	if (flags & BEET_FLAGS_RELEASE) {
-		err2 = staterelease(TOSTATE(state));
+		err2 = staterelease(state);
 		if (err2 != BEET_OK) return err2;
 	} 
 	if (err != BEET_OK) return err;
@@ -736,11 +722,11 @@ beet_err_t beet_index_get2(beet_index_t  idx,
                            void        **data) {
 	beet_err_t err;
 
-	err = beet_index_get(idx, TOSTATE(state),
+	err = beet_index_get(idx, state,
 	            BEET_FLAGS_ROOT, key1, NULL);
 	if (err != BEET_OK) return err;
 
-	err = beet_index_get(idx, TOSTATE(state), flags |
+	err = beet_index_get(idx, state, flags |
 	                 BEET_FLAGS_SUBTREE, key2, data);
 	if (err != BEET_OK) return err;
 	return BEET_OK;
@@ -812,13 +798,13 @@ beet_err_t beet_index_range(beet_index_t    idx,
 
 	/* iter from state ? */
 	if (state != NULL &&
-	    TOSTATE(state)->root != NULL &&
+	    state->root != NULL &&
 	    idx->subidx != NULL) {
 		*iter = calloc(1, sizeof(beet_iter_t));
 		if (*iter == NULL) return BEET_ERR_NOMEM;
 		err = beet_iter_init(*iter, NULL,
 		                     idx->subidx->tree,
-		                     TOSTATE(state)->root,
+		                     state->root,
 		                     from, to, dir);
 		if (err != BEET_OK) {
 			free(*iter); *iter = NULL;
@@ -835,7 +821,7 @@ beet_err_t beet_index_range(beet_index_t    idx,
 	}
 
 	/* create main iter */
-	*iter = calloc(1, sizeof(beet_iter_t));
+	*iter = calloc(1, sizeof(struct beet_iter_t));
 	if (*iter == NULL) return BEET_ERR_NOMEM;
 	err = beet_iter_init(*iter, iter2,
 		             idx->tree,
