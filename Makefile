@@ -31,22 +31,24 @@ LOG = log
 RSC = rsc
 OUTLIB = lib
 
-OBJ = $(SRC)/lock.o  \
-      $(SRC)/error.o \
-      $(SRC)/page.o  \
-      $(SRC)/rider.o \
-      $(SRC)/ins.o   \
-      $(SRC)/node.o  \
-      $(SRC)/tree.o  \
+OBJ = $(SRC)/lock.o   \
+      $(SRC)/error.o  \
+      $(SRC)/page.o   \
+      $(SRC)/rider.o  \
+      $(SRC)/ins.o    \
+      $(SRC)/node.o   \
+      $(SRC)/tree.o   \
+      $(SRC)/config.o \
       $(SRC)/index.o
 
-DEP = $(HDR)/types.h \
-      $(SRC)/lock.h  \
-      $(SRC)/page.h  \
-      $(SRC)/rider.h \
-      $(SRC)/node.h  \
-      $(SRC)/ins.h   \
-      $(SRC)/tree.h  \
+DEP = $(HDR)/types.h  \
+      $(SRC)/lock.h   \
+      $(SRC)/page.h   \
+      $(SRC)/rider.h  \
+      $(SRC)/node.h   \
+      $(SRC)/ins.h    \
+      $(SRC)/tree.h   \
+      $(HDR)/config.h \
       $(HDR)/index.h
 
 default:	lib 

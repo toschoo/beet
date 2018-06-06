@@ -2,6 +2,7 @@
  * Simple Tests for plain index
  * ========================================================================
  */
+#include <beet/config.h>
 #include <beet/index.h>
 
 #include <stdint.h>
