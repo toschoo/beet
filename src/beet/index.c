@@ -25,7 +25,7 @@
  * ========================================================================
  */
 
-#include <beet/beet.h>
+#include <beet/index.h>
 #include <beet/rider.h>
 #include <beet/node.h>
 #include <beet/tree.h>

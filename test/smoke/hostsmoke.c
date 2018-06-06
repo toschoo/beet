@@ -1,8 +1,8 @@
 /* ========================================================================
- * Simple Tests for node
+ * Simple Tests for host index
  * ========================================================================
  */
-#include <beet/beet.h>
+#include <beet/index.h>
 
 #include <common/math.h>
 

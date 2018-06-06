@@ -24,8 +24,8 @@
  * - map, fold?
  * ========================================================================
  */
-#ifndef beet_decl
-#define beet_decl
+#ifndef beet_index_decl
+#define beet_index_decl
 
 #include <beet/types.h>
 #include <stdint.h>

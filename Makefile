@@ -38,7 +38,7 @@ OBJ = $(SRC)/lock.o  \
       $(SRC)/ins.o   \
       $(SRC)/node.o  \
       $(SRC)/tree.o  \
-      $(SRC)/beet.o
+      $(SRC)/index.o
 
 DEP = $(HDR)/types.h \
       $(SRC)/lock.h  \
@@ -47,7 +47,7 @@ DEP = $(HDR)/types.h \
       $(SRC)/node.h  \
       $(SRC)/ins.h   \
       $(SRC)/tree.h  \
-      $(HDR)/beet.h
+      $(HDR)/index.h
 
 default:	lib 
 

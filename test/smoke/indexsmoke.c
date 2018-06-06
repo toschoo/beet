@@ -1,8 +1,8 @@
 /* ========================================================================
- * Simple Tests for node
+ * Simple Tests for plain index
  * ========================================================================
  */
-#include <beet/beet.h>
+#include <beet/index.h>
 
 #include <stdint.h>
 #include <stdlib.h>
