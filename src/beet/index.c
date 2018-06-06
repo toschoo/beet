@@ -654,7 +654,7 @@ static inline beet_err_t getrsc(beet_config_t      *fcfg,
 	if (fcfg->rscinit != NULL) {
 		*rscinit = dlsym(handle, fcfg->rscinit);
 		if (*rscinit == NULL) {
-			fprintf(stderr, "NOT SYMBOL for %s: %s\n",
+			fprintf(stderr, "NO SYMBOL for %s: %s\n",
 			                fcfg->rscinit, dlerror());
 			return BEET_ERR_NOSYM;
 		}
@@ -662,7 +662,7 @@ static inline beet_err_t getrsc(beet_config_t      *fcfg,
 	if (fcfg->rscdest != NULL) {
 		*rscdest = dlsym(handle, fcfg->rscdest);
 		if (*rscdest == NULL) {
-			fprintf(stderr, "NOT SYMBOL for %s: %s\n",
+			fprintf(stderr, "NO SYMBOL for %s: %s\n",
 			                fcfg->rscdest, dlerror());
 			return BEET_ERR_NOSYM;
 		}
@@ -939,6 +939,26 @@ void beet_config_destroy(beet_config_t *cfg) {
 	if (cfg->compare != NULL) {
 		free(cfg->compare); cfg->compare = NULL;
 	}
+	if (cfg->rscinit != NULL) {
+		free(cfg->rscinit); cfg->rscinit = NULL;
+	}
+	if (cfg->rscdest != NULL) {
+		free(cfg->rscdest); cfg->rscdest = NULL;
+	}
+}
+
+/* ------------------------------------------------------------------------
+ * Initialise external library,
+ * i.e. call dlopen
+ * ------------------------------------------------------------------------
+ */
+void *beet_lib_init(char *lib) {
+	void *handle = dlopen(lib, RTLD_LAZY | RTLD_LOCAL);
+	if (handle == NULL) {
+		fprintf(stderr, "cannot load library: %s\n", dlerror());
+		return NULL;
+	}
+	return handle;
 }
 
 /* ------------------------------------------------------------------------

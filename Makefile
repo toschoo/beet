@@ -64,7 +64,8 @@ smoke:	$(SMK)/pagesmoke     \
 	$(SMK)/embeddedsmoke \
 	$(SMK)/contreesmoke  \
 	$(SMK)/indexsmoke    \
-	$(SMK)/hostsmoke
+	$(SMK)/hostsmoke     \
+	$(SMK)/rscsmoke
 
 stress: $(STRS)/riderstress
 
@@ -177,6 +178,14 @@ $(SMK)/hostsmoke:	lib $(SMK)/hostsmoke.o $(COM)/math.o \
 			                    $(COM)/math.o      \
 			                    $(libs) -lbeet
 
+$(SMK)/rscsmoke:	lib $(SMK)/rscsmoke.o $(COM)/math.o \
+			$(OUTLIB)/libcmp.so
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(SMK)/rscsmoke   \
+			                    $(SMK)/rscsmoke.o \
+			                    $(COM)/math.o      \
+			                    $(libs) -lbeet
+
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
 			$(LNKMSG)
@@ -215,6 +224,7 @@ clean:
 	rm -f $(SMK)/contreesmoke
 	rm -f $(SMK)/indexsmoke
 	rm -f $(SMK)/hostsmoke
+	rm -f $(SMK)/rscsmoke
 	rm -f $(STRS)/riderstress
 	rm -f $(OUTLIB)/libbeet.so
 	rm -f $(OUTLIB)/libcmp.so
