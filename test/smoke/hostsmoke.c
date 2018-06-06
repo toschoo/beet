@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <dlfcn.h>
 
 #define EMBIDX "rsc/idx20"
 #define HOSTIDX "rsc/idx30"
@@ -225,9 +224,9 @@ int main() {
 	config.rscinit = NULL;
 	config.rscdest = NULL;
 
-	handle = dlopen("libcmp.so", RTLD_LAZY | RTLD_LOCAL);
+	handle = beet_lib_init("libcmp.so");
 	if (handle == NULL) {
-		fprintf(stderr, "cannot load library: %s\n", dlerror());
+		fprintf(stderr, "cannot load library\n");
 		return EXIT_FAILURE;
 	}
 	if (createIndex(EMBIDX, &config) != 0) {
@@ -338,7 +337,7 @@ int main() {
 
 cleanup:
 	if (haveIndex) beet_index_close(idx);
-	if (handle != NULL) dlclose(handle);
+	if (handle != NULL) beet_lib_close(handle);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");
 	} else {

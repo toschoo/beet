@@ -106,6 +106,13 @@ beet_err_t beet_config_validate(beet_config_t *cfg);
 void *beet_lib_init(char *lib);
 
 /* ------------------------------------------------------------------------
+ * Close external library,
+ * i.e. call dlclose
+ * ------------------------------------------------------------------------
+ */
+void beet_lib_close(void *handle);
+
+/* ------------------------------------------------------------------------
  * Open Config (overrides Create Config)
  * ------------------------------------------------------------------------
  */

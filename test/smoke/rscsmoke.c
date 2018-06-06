@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <dlfcn.h>
 #include <math.h>
 
 #define IDX "rsc/idx40"
@@ -246,7 +245,7 @@ int main() {
 
 cleanup:
 	if (haveIndex) beet_index_close(idx);
-	if (handle != NULL) dlclose(handle);
+	if (handle != NULL) beet_lib_close(handle);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");
 	} else {
