@@ -86,6 +86,87 @@ beet_err_t beet_iter_reset(beet_iter_t iter) {
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: get start node for 'from'
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t getfrom(beet_iter_t iter) {
+	char x;
+	beet_err_t err;
+	beet_node_t *tmp;
+
+	for(;;) {
+		iter->pos = beet_node_search(iter->node,
+		                             iter->tree->ksize,
+		                             iter->from,
+		                             iter->tree->cmp,
+		                             iter->tree->rsc);
+		if (iter->pos < 0) {
+			beet_tree_release(iter->tree, iter->node);
+			return BEET_ERR_PANIC;
+		}
+		if (iter->pos == iter->node->size) {
+			/* is this case possible -- 
+			 * or should we rather treat it as error ? */
+			if (iter->dir == BEET_DIR_ASC) {
+				err = beet_tree_next(iter->tree, iter->node, &tmp);
+				if (err != BEET_OK) return err;
+				
+				err = beet_tree_release(iter->tree, iter->node);
+				if (err != BEET_OK) return err;
+
+				iter->node = tmp; continue;
+
+			} else iter->pos--;
+		}
+		/*
+		fprintf(stderr, "from: %d, found %d (%d)\n",
+		                *(int*)iter->from, iter->pos,
+		                *(int*)(iter->node->keys+iter->pos*iter->tree->ksize));
+		*/
+		for(;;) {
+			/*
+			fprintf(stderr, "looking at %d (%d)\n",
+			       iter->pos,
+			      *(int*)(iter->node->keys+iter->pos*iter->tree->ksize));
+			*/
+			x = iter->tree->cmp(iter->from,
+			                    iter->node->keys+
+			                    iter->pos*
+			                    iter->tree->ksize,
+			                    iter->tree->rsc);
+			if ((iter->dir == BEET_DIR_ASC  && 
+			     x != BEET_CMP_GREATER)     ||
+			    (iter->dir == BEET_DIR_DESC &&
+			     x != BEET_CMP_LESS)) {
+				return BEET_OK;
+			}
+			if (iter->dir == BEET_DIR_ASC) {
+				iter->pos++;
+				if (iter->pos >= iter->node->size)
+					return BEET_OK;
+			} else {
+				iter->pos--;
+				if (iter->pos < 0) {
+					/* is this case possible -- 
+					 * or should we rather
+					 * treat it as error ? */
+					err = beet_tree_prev(iter->tree,
+					                     iter->node,
+					                          &tmp);
+					if (err != BEET_OK) return err;
+				
+					err = beet_tree_release(iter->tree,
+					                        iter->node);
+					if (err != BEET_OK) return err;
+					iter->node = tmp; break;
+				}
+			}
+		}
+	}
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Move the iterator one key forward
  * ------------------------------------------------------------------------
  */
@@ -97,13 +178,21 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 
 	if (iter->level == 1) return beet_iter_move(iter->sub, key, data);
 
-	if (iter->node != NULL && iter->pos >= iter->node->size) {
-		err = beet_tree_next(iter->tree, iter->node, &tmp);
+	if (iter->node != NULL && (
+	   (iter->dir == BEET_DIR_ASC  && iter->pos == iter->node->size) ||
+	   (iter->dir == BEET_DIR_DESC && iter->pos == -1))) {
+		if (iter->dir == BEET_DIR_ASC) {
+			err = beet_tree_next(iter->tree, iter->node, &tmp);
+		} else {
+			err = beet_tree_prev(iter->tree, iter->node, &tmp);
+		}
 		if (err != BEET_OK) return err;
-		iter->pos = 0;
+
+		iter->pos = iter->dir == BEET_DIR_ASC?0:tmp->size-1;
 
 		err = beet_tree_release(iter->tree, iter->node);
 		free(iter->node); iter->node = tmp;
+
 	}
 	if (iter->node == NULL) {
 		if (iter->pos != -1) return BEET_ERR_EOF;
@@ -119,11 +208,31 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 			                                 &iter->node);
 		}
 		if (err != BEET_OK) return err;
-		iter->pos = 0;
+
+		if (iter->from != NULL) {
+			err = getfrom(iter);
+			if (err != BEET_OK) return err;
+		} else {
+			iter->pos = iter->dir == BEET_DIR_ASC?0:
+			            iter->node->size-1;
+		}
 	}
+
 	*key = iter->node->keys+iter->pos*iter->tree->ksize;
 	*data = iter->node->kids+iter->pos*iter->tree->dsize;
-	iter->pos++;
+
+	if (iter->to != NULL) {
+		if (iter->dir == BEET_DIR_ASC) {
+			if (iter->tree->cmp(*key, iter->to,
+			    iter->tree->rsc) == BEET_CMP_GREATER)
+				return BEET_ERR_EOF;
+		} else {
+			if (iter->tree->cmp(*key, iter->to,
+			    iter->tree->rsc) == BEET_CMP_LESS)
+				return BEET_ERR_EOF;
+		}
+	}
+	if (iter->dir == BEET_DIR_ASC) iter->pos++; else iter->pos--;
 	return BEET_OK;
 }
 
@@ -140,7 +249,7 @@ beet_err_t beet_iter_enter(beet_iter_t iter) {
 	                                   iter->pos*
 	                                   sizeof(beet_pageid_t));
 	iter->level = 1;
-	return BEET_OK;
+	return beet_iter_reset(iter->sub);
 }
 
 /* ------------------------------------------------------------------------

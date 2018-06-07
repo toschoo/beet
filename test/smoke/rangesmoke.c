@@ -90,32 +90,112 @@ int testDoesExist(beet_index_t idx, int hi) {
 	return 0;
 }
 
-int rangeAll(beet_index_t idx, int hi) {
+int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 	beet_iter_t iter;
 	beet_err_t   err;
 	int *k, *d, o=-1, c=0;
+	int expected;
+	int f,t;
+	beet_range_t range;
+	beet_range_t *ptr=NULL;
 
-	err = beet_index_range(idx, NULL, NULL, 
-	                  BEET_DIR_ASC, &iter);
+	range.fromkey = NULL;
+	range.tokey = NULL;
+
+	if (dir == BEET_DIR_ASC) {
+		f = 0; t = hi-1;
+	} else {
+		t = 0; f = hi-1;
+	}
+
+	if (from > 0) {
+		range.fromkey = &from;
+		f = from;
+		ptr = &range;
+	}
+	if (to > 0) {
+		range.tokey = &to;
+		t = to;
+		ptr = &range;
+	}
+	err = beet_index_range(idx, NULL, ptr, dir, &iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot create iter");
+		return -1;
+	}
+	o = dir == BEET_DIR_ASC ? f-1 : f+1;
+	while((err = beet_iter_move(iter, (void**)&k,
+	                                  (void**)&d)) == BEET_OK) {
+
+		// fprintf(stderr, "%d: %d\n", *k, *d);
+
+		if (dir == BEET_DIR_ASC) o++; else o--;
+		c++;
+		if (*k != o) {
+			fprintf(stderr,
+			"ERROR: not in order: %d - %d\n", o, *k);
+			beet_iter_destroy(iter);
+			return -1;
+		}
+	}
+	if (err != BEET_ERR_EOF) {
+		errmsg(err, "could not move iter");
+		beet_iter_destroy(iter);
+		return -1;
+	}
+	expected = dir == BEET_DIR_ASC ? t-f+1 : f-t+1;
+	if (c != expected) {
+		fprintf(stderr,
+		"range incomplete or too big: %d - %d (%d - %d = %d)\n",
+		                                 c, hi, t, f, expected);
+		beet_iter_destroy(iter); return -1;
+	}
+	beet_iter_destroy(iter);
+	return 0;
+}
+
+int rangeAll(beet_index_t idx, beet_dir_t dir, int hi) {
+	return range(idx, -1, -1, dir, hi);
+}
+
+int rangeOutOfRange(beet_index_t idx, beet_dir_t dir, int from, int to) {
+	beet_iter_t iter;
+	beet_err_t   err;
+	int *k, *d, o=-1;
+	beet_range_t range;
+	beet_range_t *rptr=NULL;
+
+	range.fromkey = NULL;
+	range.tokey = NULL;
+
+	if (from > 0) {
+		range.fromkey = &from;
+		rptr = &range;
+	}
+	if (to > 0) {
+		range.tokey = &to;
+		rptr = &range;
+	}
+	err = beet_index_range(idx, NULL, rptr, dir, &iter);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create iter");
 		return -1;
 	}
 	while((err = beet_iter_move(iter, (void**)&k,
 	                                  (void**)&d)) == BEET_OK) {
+
 		// fprintf(stderr, "%d: %d\n", *k, *d);
-		o++; c++;
+
+		if (o == -1) {
+			o = *k; continue;
+		}
+		if (dir == BEET_DIR_ASC) o++; else o--;
 		if (*k != o) {
 			fprintf(stderr,
-			"ERROR: not ascending: %d - %d\n", o, *k);
+			"ERROR: not in order: %d - %d\n", o, *k);
 			beet_iter_destroy(iter);
 			return -1;
 		}
-	}
-	if (c != hi) {
-		fprintf(stderr,
-		"range incomplete or too big: %d - %d\n", c, hi);
-		beet_iter_destroy(iter); return -1;
 	}
 	if (err != BEET_ERR_EOF) {
 		errmsg(err, "could not move iter");
@@ -123,10 +203,6 @@ int rangeAll(beet_index_t idx, int hi) {
 		return -1;
 	}
 	beet_iter_destroy(iter);
-	return 0;
-}
-
-int range(beet_index_t idx, int lo, int hi) {
 	return 0;
 }
 
@@ -181,8 +257,20 @@ int main() {
 		fprintf(stderr, "testDoesExist 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (rangeAll(idx, 13) != 0) {
+	if (rangeAll(idx, BEET_DIR_ASC, 13) != 0) {
 		fprintf(stderr, "rangeAll 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 13) != 0) {
+		fprintf(stderr, "rangeAll (desc) 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (range(idx, 5, 10, BEET_DIR_ASC, 13) != 0) {
+		fprintf(stderr, "range 5-10 (asc) 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (range(idx, 10, 5, BEET_DIR_DESC, 13) != 0) {
+		fprintf(stderr, "range 10-5 (desc) 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
@@ -195,8 +283,20 @@ int main() {
 		fprintf(stderr, "testDoesExist 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (rangeAll(idx, 64) != 0) {
+	if (rangeAll(idx, BEET_DIR_ASC, 64) != 0) {
 		fprintf(stderr, "rangeAll 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 64) != 0) {
+		fprintf(stderr, "rangeAll (desc) 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (range(idx, 10, 50, BEET_DIR_ASC, 64) != 0) {
+		fprintf(stderr, "range 10-50 (desc) 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (range(idx, 50, 10, BEET_DIR_DESC, 64) != 0) {
+		fprintf(stderr, "range 50-10 (desc) 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
@@ -218,8 +318,20 @@ int main() {
 		fprintf(stderr, "testDoesExist 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (rangeAll(idx, 99) != 0) {
+	if (rangeAll(idx, BEET_DIR_ASC, 99) != 0) {
 		fprintf(stderr, "rangeAll 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 99) != 0) {
+		fprintf(stderr, "rangeAll (desc) 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (range(idx, 7, 98, BEET_DIR_ASC, 99) != 0) {
+		fprintf(stderr, "range 7-98 (desc) 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (range(idx, 98, 7, BEET_DIR_DESC, 99) != 0) {
+		fprintf(stderr, "range 98-7 (desc) 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	/* test with 200 (key,value) pairs */
@@ -231,8 +343,12 @@ int main() {
 		fprintf(stderr, "testDoesExist 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (rangeAll(idx, 200) != 0) {
+	if (rangeAll(idx, BEET_DIR_ASC, 200) != 0) {
 		fprintf(stderr, "rangeAll 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 200) != 0) {
+		fprintf(stderr, "rangeAll (desc) 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	/* test with 300 (key,value) pairs */
@@ -244,8 +360,40 @@ int main() {
 		fprintf(stderr, "testDoesExist 300 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (rangeAll(idx, 300) != 0) {
+	if (rangeAll(idx, BEET_DIR_ASC, 300) != 0) {
 		fprintf(stderr, "rangeAll 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 300) != 0) {
+		fprintf(stderr, "rangeAll (desc) 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeOutOfRange(idx, BEET_DIR_DESC, 301, 0) != 0) {
+		fprintf(stderr, "out-of-range 301 (desc) failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (writeRange(idx, 305, 350) != 0) {
+		fprintf(stderr, "writeRange 305-350 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeOutOfRange(idx, BEET_DIR_DESC, 300, 0) != 0) {
+		fprintf(stderr, "out-of-range 300 (desc) failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeOutOfRange(idx, BEET_DIR_ASC, 300, 320) != 0) {
+		fprintf(stderr, "out-of-range 300 (asc) failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (writeRange(idx, 1024, 1100) != 0) {
+		fprintf(stderr, "writeRange 1024-1100 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeOutOfRange(idx, BEET_DIR_DESC, 500, 305) != 0) {
+		fprintf(stderr, "out-of-range 300 (desc) failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeOutOfRange(idx, BEET_DIR_ASC, 500, 1050) != 0) {
+		fprintf(stderr, "out-of-range 300 (asc) failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 

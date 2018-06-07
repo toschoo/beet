@@ -862,7 +862,7 @@ static beet_err_t follow(beet_tree_t     *tree,
 	pge = dir==LEFT?(beet_pageid_t*)src->kids:
 		        (beet_pageid_t*)(src->kids+
 	                                 src->size*
-	                                 tree->dsize);
+	                                 sizeof(beet_pageid_t));
 
 	err = getNode(tree, *pge, READ, trg);
 	if (err != BEET_OK) {
