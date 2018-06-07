@@ -32,15 +32,15 @@
 #include <stdint.h>
 
 struct beet_iter_t {
-	struct beet_iter_t *sub;
-	beet_tree_t        *tree;
-	beet_pageid_t      *root;
-	beet_node_t        *node;
-	const void         *from;
-	const void         *to;
-	int32_t            pos;
-	char               level;
-	beet_dir_t         dir;
+	beet_iter_t    sub;
+	beet_tree_t   *tree;
+	beet_pageid_t *root;
+	beet_node_t   *node;
+	const void    *from;
+	const void    *to;
+	int32_t       pos;
+	char          level;
+	beet_dir_t    dir;
 };
 
 beet_err_t beet_iter_init(beet_iter_t    iter,

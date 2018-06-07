@@ -371,11 +371,13 @@ static beet_err_t openIndex(char *path, void *handle,
 	sidx->standalone = standalone;
 
 	/* open roof and set root */
-	err = getroof(sidx, path);
-	if (err != BEET_OK) {
-		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
-		return err;
+	if (standalone) {
+		err = getroof(sidx, path);
+		if (err != BEET_OK) {
+			beet_config_destroy(&fcfg);
+			beet_index_close(sidx);
+			return err;
+		}
 	}
 
 	/* init leaf rider */

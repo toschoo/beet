@@ -60,6 +60,7 @@ beet_err_t beet_iter_init(beet_iter_t    iter,
  */
 void beet_iter_destroy(beet_iter_t iter) {
 	if (iter == NULL) return;
+	fprintf(stderr, "DESTROYING ITER\n");
 	if (iter->sub != NULL) beet_iter_destroy(iter->sub);
 	if (iter->node != NULL) {
 		beet_tree_release(iter->tree, iter->node);
@@ -176,7 +177,20 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 
 	if (iter == NULL) return BEET_ERR_NOITER;
 
-	if (iter->level == 1) return beet_iter_move(iter->sub, key, data);
+	fprintf(stderr, "iter level: %d\n", iter->level);
+
+	if (iter->level == 1) {
+		fprintf(stderr, "cool! recursion into %p!\n", iter->sub);
+		fprintf(stderr, "sub pos (b): %d\n", iter->sub->pos);
+		fprintf(stderr, "sub lvl (b): %d\n", iter->sub->level);
+		fprintf(stderr, "sub dir (b): %d\n", iter->sub->dir);
+		err = beet_iter_move(iter->sub, key, data);
+		if (iter == NULL) fprintf(stderr, "NULL!!!\n");
+		fprintf(stderr, "sub pos (a): %d\n", iter->sub->pos);
+		fprintf(stderr, "sub lvl (a): %d\n", iter->sub->level);
+		fprintf(stderr, "sub dir (a): %d\n", iter->sub->dir);
+		return err;
+	}
 
 	if (iter->node != NULL && (
 	   (iter->dir == BEET_DIR_ASC  && iter->pos == iter->node->size) ||
@@ -219,7 +233,9 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 	}
 
 	*key = iter->node->keys+iter->pos*iter->tree->ksize;
-	*data = iter->node->kids+iter->pos*iter->tree->dsize;
+	if (data != NULL) {
+		*data = iter->node->kids+iter->pos*iter->tree->dsize;
+	}
 
 	if (iter->to != NULL) {
 		if (iter->dir == BEET_DIR_ASC) {
