@@ -76,6 +76,8 @@ const char *beet_errdesc(beet_err_t err) {
 		return "no subtree in iterator";
 	case BEET_ERR_NOTLEAF:
 		return "leaf operation on nonleaf";
+	case BEET_ERR_BADSTAT:
+		return "iterator in wrong state";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:

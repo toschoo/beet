@@ -802,7 +802,7 @@ beet_err_t beet_index_range(beet_index_t    idx,
 	if (state != NULL &&
 	    state->root != NULL &&
 	    idx->subidx != NULL) {
-		*iter = calloc(1, sizeof(beet_iter_t));
+		*iter = calloc(1, sizeof(struct beet_iter_t));
 		if (*iter == NULL) return BEET_ERR_NOMEM;
 		err = beet_iter_init(*iter, NULL,
 		                     idx->subidx->tree,
@@ -827,7 +827,7 @@ beet_err_t beet_index_range(beet_index_t    idx,
 	if (*iter == NULL) return BEET_ERR_NOMEM;
 	err = beet_iter_init(*iter, iter2,
 		             idx->tree,
-	                    &idx->root,
+	                     &idx->root,
 		             from,to,dir);
 	if (err != BEET_OK) {
 		free(*iter); *iter = NULL;

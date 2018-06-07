@@ -24,9 +24,6 @@
 #include <beet/iter.h>
 #include <beet/iterimp.h>
 
-#define TOITER(x) \
-	((struct beet_iter_t*)x)
-
 /* ------------------------------------------------------------------------
  * Reset the iterator to start position
  * ------------------------------------------------------------------------
@@ -60,7 +57,6 @@ beet_err_t beet_iter_init(beet_iter_t    iter,
  */
 void beet_iter_destroy(beet_iter_t iter) {
 	if (iter == NULL) return;
-	fprintf(stderr, "DESTROYING ITER\n");
 	if (iter->sub != NULL) beet_iter_destroy(iter->sub);
 	if (iter->node != NULL) {
 		beet_tree_release(iter->tree, iter->node);
@@ -80,6 +76,7 @@ beet_err_t beet_iter_reset(beet_iter_t iter) {
 	if (iter->level == 1) return beet_iter_reset(iter->sub);
 	if (iter->node != NULL) {
 		err = beet_tree_release(iter->tree, iter->node);
+		free(iter->node); iter->node = NULL;
 		if (err != BEET_OK) return err;
 	}
 	iter->pos = -1;
@@ -176,22 +173,9 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 	beet_node_t *tmp;
 
 	if (iter == NULL) return BEET_ERR_NOITER;
-
-	fprintf(stderr, "iter level: %d\n", iter->level);
-
 	if (iter->level == 1) {
-		fprintf(stderr, "cool! recursion into %p!\n", iter->sub);
-		fprintf(stderr, "sub pos (b): %d\n", iter->sub->pos);
-		fprintf(stderr, "sub lvl (b): %d\n", iter->sub->level);
-		fprintf(stderr, "sub dir (b): %d\n", iter->sub->dir);
-		err = beet_iter_move(iter->sub, key, data);
-		if (iter == NULL) fprintf(stderr, "NULL!!!\n");
-		fprintf(stderr, "sub pos (a): %d\n", iter->sub->pos);
-		fprintf(stderr, "sub lvl (a): %d\n", iter->sub->level);
-		fprintf(stderr, "sub dir (a): %d\n", iter->sub->dir);
-		return err;
+		return beet_iter_move(iter->sub, key, data);
 	}
-
 	if (iter->node != NULL && (
 	   (iter->dir == BEET_DIR_ASC  && iter->pos == iter->node->size) ||
 	   (iter->dir == BEET_DIR_DESC && iter->pos == -1))) {
@@ -257,12 +241,14 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_iter_enter(beet_iter_t iter) {
+	int32_t pos;
 	if (iter == NULL) return BEET_ERR_NOITER;
 	if (iter->sub == NULL) return BEET_ERR_NOSUB;
 	if (iter->node == NULL) return BEET_ERR_NOSUB;
 	if (iter->level == 1) return BEET_OK;
-	iter->sub->root = (beet_pageid_t*)(iter->node->kids+
-	                                   iter->pos*
+	pos = iter->dir==BEET_DIR_ASC?iter->pos-1:iter->pos+1;
+	if (pos < 0 || pos >= iter->node->size) return BEET_ERR_BADSTAT;
+	iter->sub->root = (beet_pageid_t*)(iter->node->kids+pos*
 	                                   sizeof(beet_pageid_t));
 	iter->level = 1;
 	return beet_iter_reset(iter->sub);

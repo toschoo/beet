@@ -58,7 +58,8 @@ int writeRange(beet_index_t idx, int lo, int hi) {
 	fprintf(stderr, "writing %d to %d\n", lo, hi);
 	for(int i=lo; i<hi; i++) {
 		for(int k=1;k<=i;k++) {
-			if (k != 1 && gcd(i,k) != 1) continue;
+			if (gcd(i,k) != 1) continue;
+			// fprintf(stderr, "writing [%d] %d\n", i, k);
 			p.key = &k;
 			p.data = NULL;
 			err = beet_index_insert(idx, &i, &p);
@@ -81,7 +82,8 @@ int testDoesExist(beet_index_t idx, int hi) {
 
 		err = beet_index_doesExist(idx, &k);
 		if (err != BEET_OK) {
-			errmsg(err, "cannot copy from index");
+			fprintf(stderr, "when reading %d\n", k);
+			errmsg(err, "does not exist");
 			return -1;
 		}
 	}
@@ -89,14 +91,14 @@ int testDoesExist(beet_index_t idx, int hi) {
 }
 
 int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
-	beet_iter_t iter;
 	beet_err_t   err;
-	int *k, *d, o=-1, c=0;
-	int g,z;
+	int *k, *d, *z;
+	int g, o=-1, c=0;
 	int expected;
 	int f,t;
 	beet_range_t range;
 	beet_range_t *ptr=NULL;
+	beet_iter_t iter;
 
 	range.fromkey = NULL;
 	range.tokey = NULL;
@@ -107,12 +109,12 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 		t = 1; f = hi-1;
 	}
 
-	if (from > 0) {
+	if (from >= 0) {
 		range.fromkey = &from;
 		f = from;
 		ptr = &range;
 	}
-	if (to > 0) {
+	if (to >= 0) {
 		range.tokey = &to;
 		t = to;
 		ptr = &range;
@@ -137,8 +139,6 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 			return -1;
 		}
 
-		fprintf(stderr, "iter: %p\n", iter);
-
 		err = beet_iter_enter(iter);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot enter");
@@ -148,13 +148,10 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 		while((err = beet_iter_move(iter,
 		                           (void**)&z,
 		                           (void**)&d)) == BEET_OK) {
-			if (iter == NULL) {
-				fprintf(stderr, "iter is NULL!!!\n");
-				return -1;
-			}
-			if (z != g) {
+			// fprintf(stderr, "[%d] %d: %d\n", *k, g, *z);
+			if (*z != g) {
 				fprintf(stderr, 
-				"unexpected: %d for %d (%d)\n", z, *k, g);
+				"unexpected: %d for %d (%d)\n", *z, *k, g);
 				beet_iter_destroy(iter);
 				return -1;
 			}
