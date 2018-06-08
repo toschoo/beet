@@ -118,9 +118,15 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 		t = to;
 		ptr = &range;
 	}
-	err = beet_index_range(idx, NULL, ptr, dir, &iter);
+	err = beet_iter_alloc(idx, &iter);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create iter");
+		return -1;
+	}
+	err = beet_index_range(idx, ptr, dir, iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot create iter");
+		beet_iter_destroy(iter);
 		return -1;
 	}
 	o = dir == BEET_DIR_ASC ? f-1 : f+1;
@@ -176,9 +182,15 @@ int rangeOutOfRange(beet_index_t idx, beet_dir_t dir, int from, int to) {
 		range.tokey = &to;
 		rptr = &range;
 	}
-	err = beet_index_range(idx, NULL, rptr, dir, &iter);
+	err = beet_iter_alloc(idx, &iter);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create iter");
+		return -1;
+	}
+	err = beet_index_range(idx, rptr, dir, iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot initialise iter");
+		beet_iter_destroy(iter);
 		return -1;
 	}
 	while((err = beet_iter_move(iter, (void**)&k,

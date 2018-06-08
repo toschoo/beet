@@ -98,4 +98,11 @@ then
 	exit 1
 fi
 
+test/smoke/range2smoke >> log/test.log 2>&1
+if [ $? -ne 0 ]
+then
+	echo "FAILED: range2smoke failed"
+	exit 1
+fi
+
 echo "PASSED"

@@ -93,9 +93,7 @@ int testDoesExist(beet_index_t idx, int hi) {
 int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 	beet_err_t   err;
 	int *k, *d, *z;
-	int g, o=-1, c=0;
-	int expected;
-	int f,t;
+	int f, g, o=-1, c=0;
 	beet_range_t range;
 	beet_range_t *ptr=NULL;
 	beet_iter_t iter;
@@ -103,12 +101,7 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 	range.fromkey = NULL;
 	range.tokey = NULL;
 
-	if (dir == BEET_DIR_ASC) {
-		f = 1; t = hi-1;
-	} else {
-		t = 1; f = hi-1;
-	}
-
+	f = dir == BEET_DIR_ASC ? 1 : hi-1;
 	if (from >= 0) {
 		range.fromkey = &from;
 		f = from;
@@ -116,20 +109,23 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 	}
 	if (to >= 0) {
 		range.tokey = &to;
-		t = to;
 		ptr = &range;
 	}
-	err = beet_index_range(idx, NULL, ptr, dir, &iter);
+	err = beet_iter_alloc(idx, &iter);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create iter");
+		return -1;
+	}
+	err = beet_index_range(idx, ptr, dir, iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot init iter");
+		beet_iter_destroy(iter);
 		return -1;
 	}
 	o = dir == BEET_DIR_ASC ? f-1 : f+1;
 	while((err = beet_iter_move(iter, (void**)&k,
 	                                  (void**)&d)) == BEET_OK) {
-
-		// fprintf(stderr, "%d: %d\n", *k, *d);
-
+		// fprintf(stderr, "%d\n", *k);
 		if (dir == BEET_DIR_ASC) o++; else o--;
 		c++;
 		if (*k != o) {
@@ -138,13 +134,13 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 			beet_iter_destroy(iter);
 			return -1;
 		}
-
 		err = beet_iter_enter(iter);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot enter");
+			beet_iter_destroy(iter);
 			return -1;
 		}
-		g = 1;
+		g = 1; c=0;
 		while((err = beet_iter_move(iter,
 		                           (void**)&z,
 		                           (void**)&d)) == BEET_OK) {
@@ -156,24 +152,27 @@ int range(beet_index_t idx, int from, int to, beet_dir_t dir, int hi) {
 				return -1;
 			}
 			do g++; while(g<*k && gcd(*k,g) != 1);
+			c++;
 		}
 		err = beet_iter_leave(iter);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot leave");
-			return -1;
+			beet_iter_destroy(iter); return -1;
+		}
+		if (c == 0) {
+			fprintf(stderr, "nothing found for %d\n", *k);
+			beet_iter_destroy(iter); return -1;
+		}
+		if (g != *k && *k != 1) {
+			fprintf(stderr,
+			"unexpected last value %d / %d\n", g, *k);
+			beet_iter_destroy(iter); return -1;
 		}
 	}
 	if (err != BEET_ERR_EOF) {
 		errmsg(err, "could not move iter");
 		beet_iter_destroy(iter);
 		return -1;
-	}
-	expected = dir == BEET_DIR_ASC ? t-f+1 : f-t+1;
-	if (c != expected) {
-		fprintf(stderr,
-		"range incomplete or too big: %d - %d (%d - %d = %d)\n",
-		                                 c, hi, t, f, expected);
-		beet_iter_destroy(iter); return -1;
 	}
 	beet_iter_destroy(iter);
 	return 0;
@@ -183,50 +182,77 @@ int rangeAll(beet_index_t idx, beet_dir_t dir, int hi) {
 	return range(idx, -1, -1, dir, hi);
 }
 
-int rangeOutOfRange(beet_index_t idx, beet_dir_t dir, int from, int to) {
+int getSome(beet_index_t idx, int hi) {
+	beet_err_t err;
+	beet_state_t state;
 	beet_iter_t iter;
-	beet_err_t   err;
-	int *k, *d, o=-1;
-	beet_range_t range;
-	beet_range_t *rptr=NULL;
+	int k = 0, g, c;
+	int *z;
 
-	range.fromkey = NULL;
-	range.tokey = NULL;
-
-	if (from > 0) {
-		range.fromkey = &from;
-		rptr = &range;
-	}
-	if (to > 0) {
-		range.tokey = &to;
-		rptr = &range;
-	}
-	err = beet_index_range(idx, NULL, rptr, dir, &iter);
+	err = beet_state_alloc(idx, &state);
 	if (err != BEET_OK) {
-		errmsg(err, "cannot create iter");
+		errmsg(err, "could not allocate state\n");
 		return -1;
 	}
-	while((err = beet_iter_move(iter, (void**)&k,
-	                                  (void**)&d)) == BEET_OK) {
-
-		// fprintf(stderr, "%d: %d\n", *k, *d);
-
-		if (o == -1) {
-			o = *k; continue;
-		}
-		if (dir == BEET_DIR_ASC) o++; else o--;
-		if (*k != o) {
-			fprintf(stderr,
-			"ERROR: not in order: %d - %d\n", o, *k);
+	err = beet_iter_alloc(idx, &iter);
+	if (err != BEET_OK) {
+		errmsg(err, "could not allocate iter\n");
+		beet_state_destroy(state);
+		return -1;
+	}
+	for(int i=0;i<25;i++) {
+		do k=rand()%hi; while(k == 0);
+		err = beet_index_getIter(idx, state, &k, iter);
+		if (err != BEET_OK) {
+			errmsg(err, "could not allocate iter\n");
 			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		g = 1; c=0;
+		while((err = beet_iter_move(iter,
+		                           (void**)&z,
+		                           NULL)) == BEET_OK) {
+			// fprintf(stderr, "[%d] %d: %d\n", k, g, *z);
+			if (*z != g) {
+				fprintf(stderr, 
+				"unexpected: %d for %d (%d)\n", *z, k, g);
+				beet_iter_destroy(iter);
+				beet_state_destroy(state);
+				return -1;
+			}
+			do g++; while(g<k && gcd(k,g) != 1);
+			c++;
+		}
+		if (c == 0) {
+			fprintf(stderr, "nothing found for %d\n", k);
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		if (g != k && k != 1) {
+			fprintf(stderr,
+			"unexpected last value %d / %d\n", g, k);
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_iter_reset(iter);
+		if (err != BEET_OK) {
+			errmsg(err, "could not reset iter\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_state_release(state);
+		if (err != BEET_OK) {
+			errmsg(err, "could not release state\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
 			return -1;
 		}
 	}
-	if (err != BEET_ERR_EOF) {
-		errmsg(err, "could not move iter");
-		beet_iter_destroy(iter);
-		return -1;
-	}
+	beet_state_destroy(state);
 	beet_iter_destroy(iter);
 	return 0;
 }
@@ -281,12 +307,67 @@ int main() {
 		fprintf(stderr, "writeRange 0-13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testDoesExist(idx, 13) != 0) {
-		fprintf(stderr, "testDoesExist 13 failed\n");
-		rc = EXIT_FAILURE; goto cleanup;
-	}
 	if (rangeAll(idx, BEET_DIR_ASC, 13) != 0) {
 		fprintf(stderr, "rangeAll 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 13) != 0) {
+		fprintf(stderr, "rangeAll 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (getSome(idx, 13) != 0) {
+		fprintf(stderr, "getSome 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	/* test with 99 (key,value) pairs */
+	if (writeRange(idx, 13, 99) != 0) {
+		fprintf(stderr, "writeRange 13-99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_ASC, 99) != 0) {
+		fprintf(stderr, "rangeAll 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 99) != 0) {
+		fprintf(stderr, "rangeAll 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (getSome(idx, 99) != 0) {
+		fprintf(stderr, "getSome 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	/* test with 150 (key,value) pairs */
+	if (writeRange(idx, 15, 150) != 0) {
+		fprintf(stderr, "writeRange 15-150 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_ASC, 150) != 0) {
+		fprintf(stderr, "rangeAll 150 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 150) != 0) {
+		fprintf(stderr, "rangeAll 150 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (getSome(idx, 150) != 0) {
+		fprintf(stderr, "getSome 150 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	/* test with 300 (key,value) pairs */
+	if (writeRange(idx, 150, 300) != 0) {
+		fprintf(stderr, "writeRange 150-300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_ASC, 300) != 0) {
+		fprintf(stderr, "rangeAll 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeAll(idx, BEET_DIR_DESC, 300) != 0) {
+		fprintf(stderr, "rangeAll 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (getSome(idx, 300) != 0) {
+		fprintf(stderr, "getSome 300 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 

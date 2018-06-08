@@ -44,7 +44,6 @@ struct beet_iter_t {
 };
 
 beet_err_t beet_iter_init(beet_iter_t    iter,
-                          beet_iter_t    sub,
                           beet_tree_t   *tree,
                           beet_pageid_t *root,
                           const void    *from,

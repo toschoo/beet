@@ -67,7 +67,7 @@ struct beet_state_t {
  * ------------------------------------------------------------------------
  */
 #define IDXNULL() \
-	if (idx == NULL) return BEET_ERR_INVALID;
+	if (idx == NULL) return BEET_ERR_NOIDX;
 
 /* ------------------------------------------------------------------------
  * Macro: state not NULL
@@ -548,6 +548,16 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data) {
 beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
 
 /* ------------------------------------------------------------------------
+ * Removes a single data point from a subindex and, 
+ * if this was the last one, also its key from the main index.
+ * TODO: implement!
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_delete(beet_index_t  idx,
+                             void         *key1,
+                             void         *key2);
+
+/* ------------------------------------------------------------------------
  * Helper: release state
  * TODO:
  * what to do when release fails (leaking memory?)
@@ -769,27 +779,46 @@ beet_err_t beet_index_doesExist2(beet_index_t   idx,
 }
 
 /* ------------------------------------------------------------------------
- * Removes a key and all its data from the index or its subtree
- * TODO: implement!
+ * Get iterator into subtree for key
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_delete(beet_index_t  idx,
-                             beet_state_t  state,
-                             uint16_t      flags,
-                             void         *key);
+beet_err_t beet_index_getIter(beet_index_t  idx,
+                              beet_state_t  state,
+                              const void   *key,
+                              beet_iter_t  iter) {
+	beet_err_t     err;
+
+	err = beet_index_get(idx, state, BEET_FLAGS_ROOT, key, NULL);
+	if (err != BEET_OK) return err;
+
+	err = beet_iter_init(iter, idx->subidx->tree,
+	                     state->root, NULL, NULL,
+	                     BEET_DIR_ASC);
+	if (err != BEET_OK) {
+		staterelease(state);
+		return err;
+	}
+	return BEET_OK;
+}
 
 /* ------------------------------------------------------------------------
  * range scan
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_range(beet_index_t    idx,
-                            beet_state_t  state,
                             beet_range_t *range,
                             beet_dir_t      dir,
-                            beet_iter_t   *iter) {
+                            beet_iter_t    iter) {
 	beet_err_t   err;
-	beet_iter_t iter2=NULL;
 	void *from, *to;
+
+	if (idx == NULL) return BEET_ERR_NOIDX;
+	if (iter == NULL) return BEET_ERR_NOITER;
+
+	if ((idx->subidx != NULL && iter->sub == NULL) ||
+	    (idx->subidx == NULL && iter->sub != NULL)) {
+		return BEET_ERR_BADITER;
+	}
 
 	if (range == NULL) {
 		from = NULL; to = NULL;
@@ -798,40 +827,47 @@ beet_err_t beet_index_range(beet_index_t    idx,
 		to   = range->tokey;
 	}
 
-	/* iter from state ? */
-	if (state != NULL &&
-	    state->root != NULL &&
-	    idx->subidx != NULL) {
-		*iter = calloc(1, sizeof(struct beet_iter_t));
-		if (*iter == NULL) return BEET_ERR_NOMEM;
-		err = beet_iter_init(*iter, NULL,
-		                     idx->subidx->tree,
-		                     state->root,
-		                     from, to, dir);
-		if (err != BEET_OK) {
-			free(*iter); *iter = NULL;
-			return err;
-		}
-		return BEET_OK;
-	}
-
 	/* if we have a subidx, we create a subiter */
-	if (idx->subidx != NULL) {
-		err = beet_index_range(idx->subidx, NULL, NULL,
-		                       BEET_DIR_ASC, &iter2);
+	if (idx->subidx != NULL && iter->sub != NULL) {
+		err = beet_index_range(idx->subidx, NULL,
+		                 BEET_DIR_ASC, iter->sub);
 		if (err != BEET_OK) return err;
 	}
 
 	/* create main iter */
-	*iter = calloc(1, sizeof(struct beet_iter_t));
-	if (*iter == NULL) return BEET_ERR_NOMEM;
-	err = beet_iter_init(*iter, iter2,
+	err = beet_iter_init(iter,
 		             idx->tree,
 	                     &idx->root,
 		             from,to,dir);
-	if (err != BEET_OK) {
-		free(*iter); *iter = NULL;
-		return err;
+	if (err != BEET_OK) return err;
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Allocate reusable iter
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_iter_alloc(beet_index_t idx,
+                           beet_iter_t *iter) {
+	beet_err_t err;
+
+	if (idx == NULL) return BEET_ERR_NOIDX;
+	if (iter == NULL) return BEET_ERR_NOITER;
+	*iter = calloc(1, sizeof(struct beet_iter_t));
+	if (*iter == NULL) return BEET_ERR_NOMEM;
+	(*iter)->tree = idx->tree;
+	(*iter)->root = &idx->root;
+	(*iter)->sub  = NULL;
+	(*iter)->from = NULL;
+	(*iter)->to   = NULL;
+	(*iter)->pos  = -1;
+	(*iter)->node = NULL;
+	if (idx->subidx != NULL) {
+		err = beet_iter_alloc(idx->subidx, &(*iter)->sub);
+		if (err != BEET_OK) {
+			free(*iter); *iter = NULL;
+			return err;
+		}
 	}
 	return BEET_OK;
 }

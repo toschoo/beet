@@ -23,13 +23,13 @@
  */
 #include <beet/iter.h>
 #include <beet/iterimp.h>
+#include <beet/index.h>
 
 /* ------------------------------------------------------------------------
  * Reset the iterator to start position
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_iter_init(beet_iter_t    iter,
-                          beet_iter_t    sub,
                           beet_tree_t   *tree,
                           beet_pageid_t *root,
                           const void    *from,
@@ -44,7 +44,6 @@ beet_err_t beet_iter_init(beet_iter_t    iter,
 	iter->from = from;
 	iter->to   = to;
 	iter->dir  = dir;
-	iter->sub  = sub;
 	iter->pos  = -1;
 	iter->node = NULL;
 
@@ -52,7 +51,7 @@ beet_err_t beet_iter_init(beet_iter_t    iter,
 }
 
 /* ------------------------------------------------------------------------
- * Reset the iterator to start position
+ * Destroy the iterator
  * ------------------------------------------------------------------------
  */
 void beet_iter_destroy(beet_iter_t iter) {

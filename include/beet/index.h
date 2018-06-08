@@ -87,6 +87,16 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
 beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
 
 /* ------------------------------------------------------------------------
+ * Removes data from a subtree and, if all data were removed
+ * from that subtree, also removes the key from the main tree.
+ * TODO: implement!
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_delete(beet_index_t  idx,
+                             void        *key1,
+                             void        *key2);
+
+/* ------------------------------------------------------------------------
  * Get data by key (simple)
  * ------------------------------------------------------------------------
  */
@@ -167,14 +177,20 @@ beet_err_t beet_index_doesExist2(beet_index_t   idx,
                                  const void   *key2);
 
 /* ------------------------------------------------------------------------
- * Removes a key and all its data from the index or its subtree
- * TODO: implement!
+ * Get iterator into subtree for key
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_delete(beet_index_t  idx,
-                             beet_state_t  state,
-                             uint16_t      flags,
-                             void         *key);
+beet_err_t beet_index_getIter(beet_index_t  idx,
+                              beet_state_t  state,
+                              const void   *key,
+                              beet_iter_t  iter);
+
+/* ------------------------------------------------------------------------
+ * Allocate reusable iter
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_iter_alloc(beet_index_t idx,
+                           beet_iter_t *iter);
 
 /* ------------------------------------------------------------------------
  * range scan
@@ -190,8 +206,7 @@ typedef struct {
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_range(beet_index_t  idx,
-                            beet_state_t  state,
                             beet_range_t *range,
                             beet_dir_t    dir,
-                            beet_iter_t  *iter);
+                            beet_iter_t   iter);
 #endif

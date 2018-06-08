@@ -78,6 +78,10 @@ const char *beet_errdesc(beet_err_t err) {
 		return "leaf operation on nonleaf";
 	case BEET_ERR_BADSTAT:
 		return "iterator in wrong state";
+	case BEET_ERR_NOIDX:
+		return "index parameter is NULL";
+	case BEET_ERR_BADITER:
+		return "iterator does not match index type";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:

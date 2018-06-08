@@ -39,13 +39,13 @@ typedef struct beet_iter_t *beet_iter_t;
 void beet_iter_destroy(beet_iter_t iter);
 
 /* ------------------------------------------------------------------------
- * Reset the iterator to start position
+ * Reset the iterator to start a new search
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_iter_reset(beet_iter_t iter);
 
 /* ------------------------------------------------------------------------
- * Move the iterator to start position
+ * Move the iterator forward
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data);
