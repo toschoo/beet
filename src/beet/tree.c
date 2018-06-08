@@ -627,6 +627,7 @@ static beet_err_t add2mom(beet_tree_t   *tree,
  */
 static inline int isBarrier(beet_tree_t *tree, 
                             beet_node_t *node) {
+	if (node->leaf) return (node->size + 1 < tree->lsize);
 	return (node->size + 1 < tree->nsize);
 }
 
@@ -714,9 +715,6 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	if (mode == WRITE && isBarrier(tree, *trg)) {
 		err = unlockAll(tree, lock, nodes);
 		if (err != BEET_OK) {
-			if (mode == READ) {
-				releaseNode(tree, src); free(src);
-			}
 			return err;
 		}
 

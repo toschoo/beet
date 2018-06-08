@@ -124,6 +124,7 @@ int writeidx(beet_index_t idx, uint64_t count) {
 	uint64_t k;
 
 	for(uint64_t i=0;i<count;i++) {
+
 		k = rand();
 		x = rand()%4;
 		switch(x) {
