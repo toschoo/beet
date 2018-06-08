@@ -117,8 +117,10 @@ const char *beet_oserrdesc();
 #define BEET_ERR_NOSUB   33
 #define BEET_ERR_NOTLEAF 34
 #define BEET_ERR_BADSTAT 35
-#define BEET_ERR_NOIDX   36
-#define BEET_ERR_BADITER 37
+#define BEET_ERR_NOSTAT  36
+#define BEET_ERR_NOIDX   37
+#define BEET_ERR_BADITER 38
+#define BEET_ERR_ONEWAY  39
 #define BEET_ERR_TEST   199
 #define BEET_ERR_PANIC  999
 

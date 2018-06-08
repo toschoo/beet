@@ -32,16 +32,16 @@
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	uint8_t  indexType;     /* index type (see below)           */
+	uint32_t indexType;     /* index type (see below)           */
 	uint32_t leafPageSize;  /* page size of leaf nodes          */
 	uint32_t intPageSize;   /* page size of internal nodes      */
 	uint32_t leafNodeSize;  /* number of keys in leaf nodes     */
 	uint32_t intNodeSize;   /* number of keys in internal nodes */
 	uint32_t keySize;       /* size of one key                  */
 	uint32_t dataSize;      /* data size                        */
-	char    *subPath;       /* path to the embedded index       */
 	int32_t  leafCacheSize; /* cache size for leaf nodes        */
 	int32_t  intCacheSize;  /* cache size for internal nodes    */
+	char    *subPath;       /* path to the embedded index       */
 	char    *compare;       /* name of compare function         */
 	char    *rscinit;       /* name of rsc init function        */
 	char    *rscdest;       /* name of rsc destroyer function   */

@@ -257,6 +257,87 @@ int getSome(beet_index_t idx, int hi) {
 	return 0;
 }
 
+int invalidEnter(beet_index_t idx, int hi) {
+	beet_err_t err;
+	beet_state_t state;
+	beet_iter_t iter;
+	int k = 0;
+	int *z;
+
+	err = beet_state_alloc(idx, &state);
+	if (err != BEET_OK) {
+		errmsg(err, "could not allocate state\n");
+		return -1;
+	}
+	err = beet_iter_alloc(idx, &iter);
+	if (err != BEET_OK) {
+		errmsg(err, "could not allocate iter\n");
+		beet_state_destroy(state);
+		return -1;
+	}
+	for(int i=0;i<5;i++) {
+		do k=rand()%hi; while(k == 0);
+		err = beet_index_getIter(idx, state, &k, iter);
+		if (err != BEET_OK) {
+			errmsg(err, "could not get iter\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_iter_enter(iter);
+		if (err == BEET_OK) {
+			fprintf(stderr,
+			"enter one-level iterator works!\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+
+		err = beet_iter_leave(iter);
+		if (err == BEET_OK) {
+			fprintf(stderr, "leaving one-level iterator works!");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		while((err = beet_iter_move(iter, (void**)&z, NULL)) == BEET_OK) {
+			err = beet_iter_enter(iter);
+			if (err == BEET_OK) {
+				fprintf(stderr,
+				"enter one-level iterator works!\n");
+				beet_iter_destroy(iter);
+				beet_state_destroy(state);
+				return -1;
+			}
+
+			err = beet_iter_leave(iter);
+			if (err == BEET_OK) {
+				fprintf(stderr, "leaving one-level iterator works!");
+				beet_iter_destroy(iter);
+				beet_state_destroy(state);
+				return -1;
+			}
+		}
+		err = beet_iter_reset(iter);
+		if (err != BEET_OK) {
+			errmsg(err, "could not reset iter\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_state_release(state);
+		if (err != BEET_OK) {
+			errmsg(err, "could not release state\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+	}
+	beet_iter_destroy(iter);
+	beet_state_destroy(state);
+	return 0;
+}
+
 int main() {
 	int rc = EXIT_SUCCESS;
 	beet_index_t idx;
@@ -368,6 +449,10 @@ int main() {
 	}
 	if (getSome(idx, 300) != 0) {
 		fprintf(stderr, "getSome 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (invalidEnter(idx, 300) != 0) {
+		fprintf(stderr, "invalidEnter failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 

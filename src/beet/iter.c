@@ -243,7 +243,9 @@ beet_err_t beet_iter_enter(beet_iter_t iter) {
 	int32_t pos;
 	if (iter == NULL) return BEET_ERR_NOITER;
 	if (iter->sub == NULL) return BEET_ERR_NOSUB;
-	if (iter->node == NULL) return BEET_ERR_NOSUB;
+	if (iter->sub->tree == NULL) return BEET_ERR_NOTREE;
+	if (!iter->use) return BEET_ERR_ONEWAY;
+	if (iter->node == NULL) return BEET_ERR_NONODE;
 	if (iter->level == 1) return BEET_OK;
 	pos = iter->dir==BEET_DIR_ASC?iter->pos-1:iter->pos+1;
 	if (pos < 0 || pos >= iter->node->size) return BEET_ERR_BADSTAT;
@@ -261,8 +263,10 @@ beet_err_t beet_iter_leave(beet_iter_t iter) {
 	beet_err_t err;
 
 	if (iter == NULL) return BEET_ERR_NOITER;
-	if (iter->level == 0) return BEET_OK;
 	if (iter->sub == NULL) return BEET_ERR_NOSUB;
+	if (iter->sub->tree == NULL) return BEET_ERR_NOTREE;
+	if (!iter->use) return BEET_ERR_ONEWAY;
+	if (iter->level == 0) return BEET_OK;
 	err = beet_iter_reset(iter->sub);
 	if (err != BEET_OK) return err;
 	iter->sub->root = NULL;

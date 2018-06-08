@@ -29,6 +29,7 @@
 #include <beet/tree.h>
 #include <beet/iterimp.h>
 #include <beet/iter.h>
+#include <beet/config.h>
 #include <beet/index.h>
 
 #include <stdio.h>
@@ -74,7 +75,7 @@ struct beet_state_t {
  * ------------------------------------------------------------------------
  */
 #define STATENULL() \
-	if (state == NULL) return BEET_ERR_INVALID;
+	if (state == NULL) return BEET_ERR_NOSTAT;
 
 /* ------------------------------------------------------------------------
  * Macro: clean state
@@ -159,7 +160,7 @@ static inline beet_err_t mkroot(beet_index_t idx,
 	char *p;
 
 	/* we could reuse this path */
-	p = malloc(sizeof(path) + sizeof(LEAF) + 2);
+	p = malloc(strlen(path) + strlen(LEAF) + 2);
 	if (p == NULL) return BEET_ERR_NOMEM;
 
 	sprintf(p, "%s/%s", path, LEAF);
@@ -174,8 +175,7 @@ static inline beet_err_t mkroot(beet_index_t idx,
 	err = beet_tree_makeRoot(idx->tree, &idx->root);
 	if (err != BEET_OK) return err;
 
-	rewind(idx->roof); // != 0) return BEET_OSERR_SEEK;
-
+	rewind(idx->roof);
 	return BEET_OK;
 }
 
@@ -347,7 +347,7 @@ static beet_err_t openIndex(char *path, void *handle,
 	beet_rscdest_t rdst=NULL;
 	beet_err_t     err;
 
-	if (idx == NULL) return BEET_ERR_INVALID;
+	if (idx == NULL) return BEET_ERR_NOIDX;
 	*idx = NULL;
 
 	if (path == NULL) return BEET_ERR_INVALID;
@@ -704,7 +704,7 @@ beet_err_t beet_index_get(beet_index_t  idx,
 	STATENULL();
 
 	if (flags & BEET_FLAGS_SUBTREE) {
-		if (idx->subidx == NULL) return BEET_ERR_INVALID;
+		if (idx->subidx == NULL) return BEET_ERR_NOSUB;
 		if (state->root == NULL) return BEET_ERR_INVALID;
 		err = getdata(idx->subidx,
 		              state, key, data);
@@ -798,6 +798,7 @@ beet_err_t beet_index_getIter(beet_index_t  idx,
 		staterelease(state);
 		return err;
 	}
+	iter->use = 0; /* second level may not be used */
 	return BEET_OK;
 }
 
@@ -832,6 +833,7 @@ beet_err_t beet_index_range(beet_index_t    idx,
 		err = beet_index_range(idx->subidx, NULL,
 		                 BEET_DIR_ASC, iter->sub);
 		if (err != BEET_OK) return err;
+		iter->use = 1; /* second level may be used */
 	}
 
 	/* create main iter */
@@ -857,6 +859,7 @@ beet_err_t beet_iter_alloc(beet_index_t idx,
 	if (*iter == NULL) return BEET_ERR_NOMEM;
 	(*iter)->tree = idx->tree;
 	(*iter)->root = &idx->root;
+	(*iter)->use  = 0;
 	(*iter)->sub  = NULL;
 	(*iter)->from = NULL;
 	(*iter)->to   = NULL;

@@ -18,8 +18,6 @@ void errmsg(beet_err_t err, char *msg) {
 	}
 }
 
-beet_config_t config;
-
 #define DEREF(x) \
 	(*(int*)x)
 
@@ -59,9 +57,9 @@ beet_index_t openIndex(char *path) {
 	return idx;
 }
 
-int createDropIndex() {
+int createDropIndex(beet_config_t *cfg) {
 	beet_err_t err;
-	if (createIndex(&config) != 0) return -1;
+	if (createIndex(cfg) != 0) return -1;
 	err = beet_index_drop("rsc/idx10");
 	if (err != BEET_OK) {
 		errmsg(err, "cannot drop index");
@@ -163,11 +161,14 @@ int zerocopyRead(beet_index_t idx, int hi) {
 }
 
 int main() {
+	beet_config_t config;
 	int rc = EXIT_SUCCESS;
 	beet_index_t idx;
 	int haveIndex = 0;
 
 	srand(time(NULL) ^ (uint64_t)&printf);
+
+	beet_config_init(&config);
 
 	config.indexType = BEET_INDEX_PLAIN;
 	config.leafPageSize = 128;
@@ -183,7 +184,7 @@ int main() {
 	config.rscinit = NULL;
 	config.rscdest = NULL;
 
-	if (createDropIndex() != 0) {
+	if (createDropIndex(&config) != 0) {
 		fprintf(stderr, "createDropIndex failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}

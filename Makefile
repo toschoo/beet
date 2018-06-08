@@ -27,6 +27,8 @@ COM = common
 SMK = test/smoke
 STRS = test/stress
 TOOLS = tools
+BENCH = bench
+BIN = bin
 LOG = log
 RSC = rsc
 OUTLIB = lib
@@ -56,11 +58,13 @@ DEP = $(HDR)/types.h   \
 
 default:	lib 
 
-all:	default tests tools
+all:	default tests bench tools
 
 tools:	
 
 tests:	smoke stress
+
+bench: $(BIN)/writeplainbench
 
 smoke:	$(SMK)/pagesmoke     \
 	$(SMK)/ridersmoke    \
@@ -218,6 +222,17 @@ $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			                    $(COM)/bench.o       \
 			                    $(COM)/cmd.o         \
 			                    $(libs) -lbeet
+
+# Bench
+$(BIN)/writeplainbench:	lib $(BENCH)/writeplainbench.o \
+			$(OUTLIB)/libcmp.so $(COM)/bench.o $(COM)/cmd.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(BIN)/writeplainbench   \
+			$(BENCH)/writeplainbench.o \
+			$(COM)/bench.o       \
+			$(COM)/cmd.o         \
+			$(libs) -lbeet
+
 # Tools
 $(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
 			$(LNKMSG)
@@ -229,6 +244,7 @@ clean:
 	rm -f $(SMK)/*.o
 	rm -f $(STRS)/*.o
 	rm -f $(COM)/*.o
+	rm -f $(BENCH)/*.o
 	rm -f $(TOOLS)/*.o
 	rm -f $(LOG)/*.log
 	rm -f $(TOOLS)/readkeys
@@ -238,6 +254,7 @@ clean:
 	rm -f $(RSC)/roof
 	rm -f $(RSC)/config
 	rm -rf $(RSC)/idx??
+	rm -rf $(RSC)/idx???
 	rm -rf $(RSC)/emb
 	rm -f $(SMK)/pagesmoke
 	rm -f $(SMK)/ridersmoke
@@ -251,6 +268,7 @@ clean:
 	rm -f $(SMK)/rangesmoke
 	rm -f $(SMK)/range2smoke
 	rm -f $(STRS)/riderstress
+	rm -f $(BIN)/writeplainbench
 	rm -f $(OUTLIB)/libbeet.so
 	rm -f $(OUTLIB)/libcmp.so
 

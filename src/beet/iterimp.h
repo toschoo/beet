@@ -40,6 +40,7 @@ struct beet_iter_t {
 	const void    *to;
 	int32_t       pos;
 	char          level;
+	char          use;
 	beet_dir_t    dir;
 };
 

@@ -133,6 +133,14 @@ void beet_state_reinit(beet_state_t state);
 beet_err_t beet_state_release(beet_state_t state);
 
 /* ------------------------------------------------------------------------
+ * Flags
+ * ------------------------------------------------------------------------
+ */
+#define BEET_FLAGS_RELEASE 2
+#define BEET_FLAGS_ROOT    4
+#define BEET_FLAGS_SUBTREE 8
+
+/* ------------------------------------------------------------------------
  * Get data with state and finer control
  * ------------------------------------------------------------------------
  */
@@ -141,14 +149,6 @@ beet_err_t beet_index_get(beet_index_t  idx,
                           uint16_t      flags,
                           const void   *key,
                           void        **data);
-
-/* ------------------------------------------------------------------------
- * Flags
- * ------------------------------------------------------------------------
- */
-#define BEET_FLAGS_RELEASE 2
-#define BEET_FLAGS_ROOT    4
-#define BEET_FLAGS_SUBTREE 8
 
 /* ------------------------------------------------------------------------
  * Mere existence test
