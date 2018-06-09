@@ -78,6 +78,9 @@ int dropIndex(char *path) {
 int createIndex(char *path) {
 	beet_config_t cfg;
 	beet_err_t    err;
+	struct stat    st;
+
+	if (stat(path, &st) == 0) return 0;
 
 	beet_config_init(&cfg);
 

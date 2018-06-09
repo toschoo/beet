@@ -60,7 +60,7 @@ default:	lib
 
 all:	default tests bench tools
 
-tools:	
+tools:	bin/createidx
 
 tests:	smoke stress
 
@@ -234,9 +234,13 @@ $(BIN)/writeplainbench:	lib $(BENCH)/writeplainbench.o \
 			$(libs) -lbeet
 
 # Tools
-$(TOOLS)/readkeys:	$(DEP) lib $(TOOLS)/readkeys.o
+$(BIN)/createidx:	lib $(TOOLS)/createidx.o \
+			$(COM)/cmd.o
 			$(LNKMSG)
-			$(CC) $(LDFLAGS) -o $(TOOLS)/readkeys $(TOOLS)/readkeys.o
+			$(CC) $(LDFLAGS) -o $(BIN)/createidx \
+			$(TOOLS)/createidx.o \
+			$(COM)/cmd.o         \
+			$(libs) -lbeet
 
 # Clean up
 clean:
@@ -247,7 +251,6 @@ clean:
 	rm -f $(BENCH)/*.o
 	rm -f $(TOOLS)/*.o
 	rm -f $(LOG)/*.log
-	rm -f $(TOOLS)/readkeys
 	rm -f $(RSC)/*.bin
 	rm -f $(RSC)/*.leaf
 	rm -f $(RSC)/*.noleaf
@@ -269,6 +272,7 @@ clean:
 	rm -f $(SMK)/range2smoke
 	rm -f $(STRS)/riderstress
 	rm -f $(BIN)/writeplainbench
+	rm -f $(BIN)/createidx
 	rm -f $(OUTLIB)/libbeet.so
 	rm -f $(OUTLIB)/libcmp.so
 
