@@ -95,11 +95,11 @@ flags:
 
 .SUFFIXES: .c .o
 
-.c.o:
+.c.o:	$(DEP)
 	$(CMPMSG)
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
-.cpp.o:
+.cpp.o:	$(DEP)
 	$(CMPMSG)
 	$(CXX) $(CFLAGS) $(INC) -c -o $@ $<
 
