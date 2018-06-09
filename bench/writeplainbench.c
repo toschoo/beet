@@ -129,13 +129,8 @@ int writeidx(beet_index_t idx, uint64_t count) {
 	for(uint64_t i=0;i<count;i++) {
 
 		k = rand();
-		x = rand()%4;
-		switch(x) {
-		case 1: k*=10;break;
-		case 2: k*=100;break;
-		case 3: k*=1000;break;
-		default: break;
-		}
+		x = rand()%2;
+		if (x) k*=rand();
 		
 		err = beet_index_insert(idx, &k, &k);
 		if (err != BEET_OK) {
