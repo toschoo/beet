@@ -99,7 +99,9 @@ int readplain(beet_index_t idx, uint64_t count, int *found) {
 int bench(int type, char *path) {
 	beet_index_t  idx;
 	struct timespec t1, t2;
-	uint64_t d = 0;
+	uint64_t *d, s=0;
+	uint64_t mx=0, mn=-1;
+	uint32_t it=global_iter;
 	int found = 0;
 
 	fprintf(stderr, "%s\n", path);
@@ -107,23 +109,42 @@ int bench(int type, char *path) {
 	idx = openIndex(path);
 	if (idx == NULL) return -1;
 
-	for(uint32_t i=0; i<global_iter; i++) {
+	d = calloc(it, sizeof(uint64_t));
+	if (d == NULL) {
+		fprintf(stderr, "out-of-mem\n");
+		return -1;
+	}
+
+	for(uint32_t i=0; i<it; i++) {
 
 		timestamp(&t1);
 		switch(type) {
 		case BEET_INDEX_PLAIN:
-			if (readplain(idx, global_count, &found) != 0) return -1;
+			if (readplain(idx, global_count, &found) != 0) {
+				free(d); return -1;
+			}
 			break;
 		default:
-			fprintf(stderr, "unknown index type\n"); return -1;
+			fprintf(stderr, "unknown index type\n");
+			free(d); return -1;
 		}
 		timestamp(&t2);
 
-		d += minus(&t2,&t1)/1000;
+		d[i]  = minus(&t2,&t1);
+		s    += minus(&t2,&t1);
+		if (mx < d[i]) mx = d[i];
+		if (mn > d[i]) mn = d[i];
 	}
 	beet_index_close(idx);
-	fprintf(stderr, "found: %d\n", found);
-	fprintf(stderr, "avg: %luus\n", d/global_iter);
+	qsort(d, it, sizeof(uint64_t), &compare);
+	fprintf(stderr, "found : %u\n", found);
+	fprintf(stderr, "avg   : %010luus\n", (s/it)/1000);
+	fprintf(stderr, "median: %010luus\n", median(d, it)/1000);
+	fprintf(stderr, "max   : %010luus\n", mx/1000);
+	fprintf(stderr, "min   : %010luus\n", mn/1000);
+	fprintf(stderr, "99    : %010luus\n", percentile(d, it, 99)/1000);
+	fprintf(stderr, "50    : %010luus\n", percentile(d, it, 50)/1000);
+	free(d);
 	return 0;
 }
 
