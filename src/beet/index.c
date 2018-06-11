@@ -629,6 +629,15 @@ static beet_err_t getdata(beet_index_t idx,
 }
 
 /* ------------------------------------------------------------------------
+ * Compute height of the tree
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_height(beet_index_t idx, uint32_t *h) {
+	IDXNULL();
+	return beet_tree_height(idx->tree, &idx->root, h);
+}
+
+/* ------------------------------------------------------------------------
  * Get data by key (simple)
  * ------------------------------------------------------------------------
  */

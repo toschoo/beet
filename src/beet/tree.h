@@ -150,8 +150,8 @@ beet_err_t beet_tree_release(beet_tree_t *tree,
  * Height of the tree (debugging)
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_height(beet_tree_t  *tree,
-                            beet_pageid_t root,
-                            uint32_t       *h);
+beet_err_t beet_tree_height(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            uint32_t      *h);
 #endif
 

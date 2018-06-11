@@ -988,9 +988,62 @@ beet_err_t beet_tree_release(beet_tree_t *tree,
 }
 
 /* ------------------------------------------------------------------------
- * Height of the tree (debugging)
+ * Height
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_tree_height(beet_tree_t  *tree,
-                            beet_pageid_t root,
-                            uint32_t       *h);
+static beet_err_t height(beet_tree_t     *tree,
+                         beet_node_t      *src,
+                         uint32_t           *h) {
+	beet_err_t   err;
+	beet_node_t *trg;
+
+	if (src->leaf) {
+		err = releaseNode(tree, src); free(src);
+		if (err != BEET_OK) return err;
+		return BEET_OK;
+	}
+
+	(*h)++;
+
+	err = getNode(tree, *(beet_pageid_t*)src->kids, READ, &trg);
+	if (err != BEET_OK) {
+		releaseNode(tree, src); free(src);
+		return err;
+	}
+	err = releaseNode(tree, src); free(src);
+	if (err != BEET_OK) return err;
+
+	return height(tree, trg, h);
+}
+
+/* ------------------------------------------------------------------------
+ * Height of the tree
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_height(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            uint32_t      *h) {
+	beet_err_t err, err2;
+	beet_node_t     *tmp;
+	char lock = 1;
+
+	TREENULL();
+	ROOTNULL();
+	if (h == NULL) return BEET_ERR_INVALID;
+
+	LOCK(READ);
+
+	err = getNode(tree, *root, READ, &tmp);
+	if (err != BEET_OK) {
+		UNLOCK(READ, &lock);
+		return err;
+	}
+
+	UNLOCK(READ, &lock);
+
+	*h = 1;
+
+	err = height(tree, tmp, h);
+	if (err != BEET_OK) return err;
+	return BEET_OK;
+}
