@@ -96,13 +96,51 @@ int readplain(beet_index_t idx, uint64_t count, int *found) {
 	return 0;
 }
 
+int readhost(beet_index_t   idx,
+             beet_state_t state,
+             beet_iter_t   iter,
+             uint64_t     count,
+             int         *found) {
+	beet_err_t err;
+	uint64_t k, *z;
+
+	k = rand()%count;
+	err = beet_index_getIter(idx, state, &k, iter);
+	if (err == BEET_ERR_KEYNOF) return 0;
+	if (err != BEET_OK) {
+		errmsg(err, "cannot not copy data");
+		return -1;
+	}
+	while((err = beet_iter_move(iter, (void**)&z, NULL)) == BEET_OK) {
+		(*found)++;
+	}
+	if (err != BEET_ERR_EOF) {
+		errmsg(err, "cannot iterate");
+		return -1;
+	}
+	err = beet_state_release(state);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot release state");
+		return -1;
+	}
+	err = beet_iter_reset(iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot release state");
+		return -1;
+	}
+	return 0;
+}
+
 int bench(int type, char *path) {
+	beet_err_t    err;
 	beet_index_t  idx;
 	struct timespec t1, t2;
 	uint64_t *d, s=0;
 	uint64_t mx=0, mn=-1;
 	uint32_t it=global_iter;
 	int found = 0;
+	beet_iter_t iter;
+	beet_state_t state;
 
 	fprintf(stderr, "%s\n", path);
 
@@ -115,12 +153,32 @@ int bench(int type, char *path) {
 		return -1;
 	}
 
+	if (type == BEET_INDEX_HOST) {
+		err = beet_state_alloc(idx, &state);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot allocate state");
+			return -1;
+		}
+		err = beet_iter_alloc(idx, &iter);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot allocate iter");
+			return -1;
+		}
+	}
 	for(uint32_t i=0; i<it; i++) {
 
 		timestamp(&t1);
 		switch(type) {
 		case BEET_INDEX_PLAIN:
 			if (readplain(idx, global_count, &found) != 0) {
+				free(d); return -1;
+			}
+			break;
+		case BEET_INDEX_HOST:
+			if (readhost(idx, state, iter,
+			    global_count, &found) != 0) {
+				beet_iter_destroy(iter);
+				beet_state_destroy(state);
 				free(d); return -1;
 			}
 			break;
@@ -134,6 +192,10 @@ int bench(int type, char *path) {
 		s    += minus(&t2,&t1);
 		if (mx < d[i]) mx = d[i];
 		if (mn > d[i]) mn = d[i];
+	}
+	if (type == BEET_INDEX_HOST) {
+		beet_iter_destroy(iter);
+		beet_state_destroy(state);
 	}
 	beet_index_close(idx);
 	qsort(d, it, sizeof(uint64_t), &compare);
@@ -154,6 +216,7 @@ int gettype(char *type) {
 		return -1;
 	}
 	if (strcasecmp(type, "plain") == 0) return BEET_INDEX_PLAIN;
+	if (strcasecmp(type, "host") == 0) return BEET_INDEX_HOST;
 	fprintf(stderr, "unknown type: '%s'\n", type);
 	return -1;
 }
