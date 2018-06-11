@@ -75,7 +75,7 @@ int parsecmd(char *cmd, int argc, char **argv) {
 	global_lsize = (uint32_t)ts_algo_args_findUint(
 	            argc, argv, 3, "leaf", 0, &err);
 	if (err != 0) {
-		fprintf(stderr, "command line error: %d\n", err);
+		fprintf(stderr, "command line error (lsize): %d\n", err);
 		return -1;
 	}
 	if (global_lsize == 0) return -1;
@@ -83,7 +83,7 @@ int parsecmd(char *cmd, int argc, char **argv) {
 	global_nsize = (uint32_t)ts_algo_args_findUint(
 	            argc, argv, 3, "internal", 0, &err);
 	if (err != 0) {
-		fprintf(stderr, "command line error: %d\n", err);
+		fprintf(stderr, "command line error (nsize): %d\n", err);
 		return -1;
 	}
 	if (global_nsize == 0) return -1;
@@ -91,7 +91,7 @@ int parsecmd(char *cmd, int argc, char **argv) {
 	global_ksize = (uint32_t)ts_algo_args_findUint(
 	            argc, argv, 3, "key", 0, &err);
 	if (err != 0) {
-		fprintf(stderr, "command line error: %d\n", err);
+		fprintf(stderr, "command line error (ksize): %d\n", err);
 		return -1;
 	}
 	if (global_ksize == 0) return -1;
@@ -99,7 +99,7 @@ int parsecmd(char *cmd, int argc, char **argv) {
 	global_type = (uint32_t)ts_algo_args_findUint(
 	 argc, argv, 3, "type", BEET_INDEX_PLAIN, &err);
 	if (err != 0) {
-		fprintf(stderr, "command line error: %d\n", err);
+		fprintf(stderr, "command line error (type): %d\n", err);
 		return -1;
 	}
 	switch(global_type) {
@@ -138,7 +138,7 @@ int parsecmd(char *cmd, int argc, char **argv) {
 		return -1;
 	}
 
-	global_stndaln = ts_algo_args_findUint(
+	global_stndaln = ts_algo_args_findBool(
 	            argc, argv, 3, "standalone", 1, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
