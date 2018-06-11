@@ -60,11 +60,12 @@ default:	lib
 
 all:	default tests bench tools
 
-tools:	bin/createidx
+tools:	bin/beet
 
 tests:	smoke stress
 
-bench: $(BIN)/writeplainbench
+bench: $(BIN)/writebench \
+       $(BIN)/readbench
 
 smoke:	$(SMK)/pagesmoke     \
 	$(SMK)/ridersmoke    \
@@ -224,23 +225,32 @@ $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			                    $(libs) -lbeet
 
 # Bench
-$(BIN)/writeplainbench:	lib $(BENCH)/writeplainbench.o \
+$(BIN)/writebench:	lib $(BENCH)/writebench.o \
 			$(OUTLIB)/libcmp.so $(COM)/bench.o $(COM)/cmd.o
 			$(LNKMSG)
-			$(CC) $(LDFLAGS) -o $(BIN)/writeplainbench   \
-			$(BENCH)/writeplainbench.o \
+			$(CC) $(LDFLAGS) -o $(BIN)/writebench   \
+			$(BENCH)/writebench.o \
+			$(COM)/bench.o       \
+			$(COM)/cmd.o         \
+			$(libs) -lbeet
+
+$(BIN)/readbench:	lib $(BENCH)/readbench.o \
+			$(OUTLIB)/libcmp.so $(COM)/bench.o $(COM)/cmd.o
+			$(LNKMSG)
+			$(CC) $(LDFLAGS) -o $(BIN)/readbench \
+			$(BENCH)/readbench.o \
 			$(COM)/bench.o       \
 			$(COM)/cmd.o         \
 			$(libs) -lbeet
 
 # Tools
-$(BIN)/createidx:	lib $(TOOLS)/createidx.o \
-			$(COM)/cmd.o
-			$(LNKMSG)
-			$(CC) $(LDFLAGS) -o $(BIN)/createidx \
-			$(TOOLS)/createidx.o \
-			$(COM)/cmd.o         \
-			$(libs) -lbeet
+$(BIN)/beet:	lib $(TOOLS)/beet.o \
+		$(COM)/cmd.o
+		$(LNKMSG)
+		$(CC) $(LDFLAGS) -o $(BIN)/beet \
+		$(TOOLS)/beet.o \
+		$(COM)/cmd.o         \
+		$(libs) -lbeet
 
 # Clean up
 clean:
@@ -271,8 +281,9 @@ clean:
 	rm -f $(SMK)/rangesmoke
 	rm -f $(SMK)/range2smoke
 	rm -f $(STRS)/riderstress
-	rm -f $(BIN)/writeplainbench
-	rm -f $(BIN)/createidx
+	rm -f $(BIN)/writebench
+	rm -f $(BIN)/readbench
+	rm -f $(BIN)/beet
 	rm -f $(OUTLIB)/libbeet.so
 	rm -f $(OUTLIB)/libcmp.so
 

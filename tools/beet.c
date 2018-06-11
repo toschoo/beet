@@ -1,5 +1,10 @@
 /* ========================================================================
- * Create a b+tree
+ * Swiss Army Knife supporting the commands:
+ * - create
+ * - height
+ * - count
+ * - filling
+ * - show
  * ========================================================================
  */
 #include <beet/types.h>
@@ -31,7 +36,12 @@ int      global_type    = 1;
  * ------------------------------------------------------------------------
  */
 void helptxt(char *prog) {
-	fprintf(stderr, "%s <path> [options]\n", prog);
+	fprintf(stderr, "%s <command> <path> [options]\n", prog);
+	fprintf(stderr, "command:\n");
+	fprintf(stderr, "--------\n");
+	fprintf(stderr, "'create': create a b+tree physically on disk\n");
+	fprintf(stderr, "options:\n");
+	fprintf(stderr, "--------\n");
 	fprintf(stderr,
 	"-standalone: this is a standalone index (default: true)\n");
 	fprintf(stderr, "-type: type of index to create (default: PLAIN)\n");
@@ -59,11 +69,11 @@ void helptxt(char *prog) {
  * get options
  * ------------------------------------------------------------------------
  */
-int parsecmd(int argc, char **argv) {
+int parsecmd(char *cmd, int argc, char **argv) {
 	int err = 0;
 
 	global_lsize = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 2, "leaf", 0, &err);
+	            argc, argv, 3, "leaf", 0, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -71,7 +81,7 @@ int parsecmd(int argc, char **argv) {
 	if (global_lsize == 0) return -1;
 
 	global_nsize = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 2, "internal", 0, &err);
+	            argc, argv, 3, "internal", 0, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -79,7 +89,7 @@ int parsecmd(int argc, char **argv) {
 	if (global_nsize == 0) return -1;
 
 	global_ksize = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 2, "key", 0, &err);
+	            argc, argv, 3, "key", 0, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -87,7 +97,7 @@ int parsecmd(int argc, char **argv) {
 	if (global_ksize == 0) return -1;
 
 	global_type = (uint32_t)ts_algo_args_findUint(
-	 argc, argv, 2, "type", BEET_INDEX_PLAIN, &err);
+	 argc, argv, 3, "type", BEET_INDEX_PLAIN, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -99,7 +109,7 @@ int parsecmd(int argc, char **argv) {
 	case BEET_INDEX_HOST: 
 		global_dsize = sizeof(beet_pageid_t);
 		global_path = ts_algo_args_findString(
-		 argc, argv, 2, "subpath", NULL, &err);
+		 argc, argv, 3, "subpath", NULL, &err);
 		if (err != 0) {
 			fprintf(stderr, "command line error: %d\n", err);
 			return -1;
@@ -109,7 +119,7 @@ int parsecmd(int argc, char **argv) {
 
 	case BEET_INDEX_PLAIN:
 		global_dsize = (uint32_t)ts_algo_args_findUint(
-		                argc, argv, 2, "data", 0, &err);
+		                argc, argv, 3, "data", 0, &err);
 		if (err != 0) {
 			fprintf(stderr, "command line error: %d\n", err);
 			return -1;
@@ -122,21 +132,21 @@ int parsecmd(int argc, char **argv) {
 	}
 
 	global_cache = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 2, "data", 10000, &err);
+	            argc, argv, 3, "data", 10000, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
 	}
 
 	global_stndaln = ts_algo_args_findUint(
-	            argc, argv, 2, "standalone", 1, &err);
+	            argc, argv, 3, "standalone", 1, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
 	}
 
 	global_compare = ts_algo_args_findString(
-	            argc, argv, 2, "compare", NULL, &err);
+	            argc, argv, 3, "compare", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -144,14 +154,14 @@ int parsecmd(int argc, char **argv) {
 	if (global_compare == NULL) return -1;
 
 	global_rscinit = ts_algo_args_findString(
-	            argc, argv, 2, "init", NULL, &err);
+	            argc, argv, 3, "init", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
 	}
 
 	global_rscdest = ts_algo_args_findString(
-	            argc, argv, 2, "destroy", NULL, &err);
+	            argc, argv, 3, "destroy", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -202,23 +212,57 @@ int createIndex(char *path) {
 	return 0;
 }
 
+int handlecmd(char *cmd, char *path) {
+	if (strcmp(cmd, "create") == 0) return createIndex(path);
+	fprintf(stderr, "not implemented: %s\n", cmd);
+	return -1;
+}
+
+int checkcmd(char *cmd) {
+	if (strnlen(cmd, 4097) > 4096) {
+		fprintf(stderr, "unknown command\n");
+		return -1;
+	}
+
+	if (strcmp(cmd, "create") == 0) return 0;
+
+	fprintf(stderr, "unknown command: %s\n", cmd);
+	return -1;
+}
+
+int checkpath(char *path) {
+	if (strnlen(path, 4097) > 4096) {
+		fprintf(stderr, "path too long\n");
+		return -1;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	int rc = EXIT_SUCCESS;
+	char *cmd;
+	char *path;
 
 	if (argc < 2) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
-	if (parsecmd(argc, argv) != 0) {
+
+	cmd = argv[1];
+	if (checkcmd(cmd) != 0) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
-
-	fprintf(stderr, "%s %s\n", argv[0], argv[1]);
-	if (createIndex(argv[1]) != 0) {
-		fprintf(stderr, "cannot create index\n");
+	path = argv[2];
+	if (checkpath(path) != 0) {
+		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
+	if (parsecmd(cmd, argc, argv) != 0) {
+		helptxt(argv[0]);
+		return EXIT_FAILURE;
+	}
+	if (handlecmd(cmd, path) != 0) return EXIT_FAILURE;
 	return rc;
 }
 
