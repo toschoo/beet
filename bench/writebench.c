@@ -130,6 +130,29 @@ beet_index_t openIndex(char *path) {
 	return idx;
 }
 
+int writenull(beet_index_t idx, uint64_t count) {
+	beet_err_t err;
+	int x;
+	uint64_t k=0;
+
+	for(uint64_t i=0;i<count;i++) {
+
+		if (global_random) {
+			k = rand();
+			x = rand()%4;
+			if (x) k*=rand();
+		} else {
+			k++;
+		}
+		err = beet_index_insert(idx, &k, NULL);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot not insert");
+			return -1;
+		}
+	}
+	return 0;
+}
+
 int writeplain(beet_index_t idx, uint64_t count) {
 	beet_err_t err;
 	int x;
@@ -190,15 +213,23 @@ int bench(int type, char *path) {
 	fprintf(stderr, "%s\n", path);
 
 	for(uint32_t i=0; i<global_iter; i++) {
-		// if (dropIndex(path) != 0) return -1;
 		if (createIndex(path) != 0) return -1;
 
 		idx = openIndex(path);
 		if (idx == NULL) return -1;
 
+		if (beet_index_type(idx) != type) {
+			fprintf(stderr, "wrong type!\n");
+			beet_index_close(idx);
+			return -1;
+		}
+
 		// measure
 		timestamp(&t1);
 		switch(type) {
+		case BEET_INDEX_NULL:
+			if (writenull(idx, global_count) != 0) return -1;
+			break;
 		case BEET_INDEX_PLAIN:
 			if (writeplain(idx, global_count) != 0) return -1;
 			break;
@@ -223,6 +254,7 @@ int gettype(char *type) {
 		fprintf(stderr, "unknown type\n");
 		return -1;
 	}
+	if (strcasecmp(type, "null") == 0) return BEET_INDEX_NULL;
 	if (strcasecmp(type, "plain") == 0) return BEET_INDEX_PLAIN;
 	if (strcasecmp(type, "host") == 0) return BEET_INDEX_HOST;
 	fprintf(stderr, "unknown type: '%s'\n", type);

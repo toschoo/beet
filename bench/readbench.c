@@ -221,6 +221,7 @@ int gettype(char *type) {
 		fprintf(stderr, "unknown type\n");
 		return -1;
 	}
+	if (strcasecmp(type, "null") == 0) return BEET_INDEX_PLAIN;
 	if (strcasecmp(type, "plain") == 0) return BEET_INDEX_PLAIN;
 	if (strcasecmp(type, "host") == 0) return BEET_INDEX_HOST;
 	fprintf(stderr, "unknown type: '%s'\n", type);
