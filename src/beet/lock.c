@@ -2,6 +2,15 @@
  * (c) Tobias Schoofs, 2018
  * ========================================================================
  * Lock: read/write locks
+ * ----------------------
+ * TODO:
+ * - it might be a good idea to switch
+ *   from pthread rwlocks to fcntl file locks
+ *   with several advantages:
+ *   + we do not need to have the locked object in the cache
+ *     (with the current approach, all pages
+ *      currently used must be in the page cache).
+ *   + we can upgrade locks from read to write
  * ========================================================================
  */
 #include <beet/lock.h>
@@ -10,6 +19,7 @@
 
 static inline beet_err_t geterr(int x) {
 	switch(x) {
+	case 0: return 0;
 	case EINVAL: return BEET_OSERR_INVAL;
 	case EBUSY: return BEET_OSERR_BUSY;
 	case ENOMEM: return BEET_OSERR_NOMEM;
@@ -21,11 +31,56 @@ static inline beet_err_t geterr(int x) {
 	}
 }
 
+#define LATCHNULL() \
+	if (latch == NULL) return BEET_ERR_NOLATCH;
+
 #define LOCKNULL() \
-	if (lock == NULL) return BEET_ERR_INVALID;
+	if (lock == NULL) return BEET_ERR_NOLOCK;
 
 #define PTHREADERR(x) \
-	return geterr(x);
+	if (x != 0) return geterr(x);
+
+/* ------------------------------------------------------------------------
+ * init latch
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_latch_init(beet_latch_t *latch) {
+	LATCHNULL();
+	int x = pthread_mutex_init(latch, NULL);
+	PTHREADERR(x);
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * destroy latch
+ * ------------------------------------------------------------------------
+ */
+void beet_latch_destroy(beet_latch_t *latch) {
+	if (latch == NULL) return;
+	pthread_mutex_destroy(latch);
+}
+
+/* ------------------------------------------------------------------------
+ * lock latch
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_latch_lock(beet_latch_t *latch) {
+	LATCHNULL();
+	int x = pthread_mutex_lock(latch);
+	PTHREADERR(x);
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * unlock latch
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_latch_unlock(beet_latch_t *latch) {
+	LATCHNULL();
+	int x = pthread_mutex_unlock(latch);
+	PTHREADERR(x);
+	return BEET_OK;
+}
 
 /* ------------------------------------------------------------------------
  * init read/write lock

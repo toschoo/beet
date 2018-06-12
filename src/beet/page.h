@@ -16,22 +16,28 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define BEET_PAGE_NULL 0xffffffff
+#define BEET_PAGE_LEAF 0x80000000
+
 /* ------------------------------------------------------------------------
  * Memory representation of a page
  * ------------------------------------------------------------------------
  */
 typedef struct {
-	char       *data; /* binary data associated with this page   */
-	beet_lock_t lock; /* read/write lock to work on this page    */
-	uint32_t     pos; /* file position where this page is stored */
-	uint32_t      sz; /* size of the page in byte                */
+	char           *data; /* binary data associated with this page   */
+	beet_lock_t     lock; /* read/write lock to work on this page    */
+	beet_pageid_t pageid; /* file position where this page is stored */
+	uint32_t          sz; /* size of the page in byte                */
 } beet_page_t;
 
 /* ------------------------------------------------------------------------
  * Allocate a new page in a file
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_page_alloc(beet_page_t **page, FILE *store, uint32_t sz);
+beet_err_t beet_page_alloc(beet_page_t **page,
+                           FILE        *store,
+                           off_t          pos,
+                           uint32_t       sz);
 
 /* ------------------------------------------------------------------------
  * Initialise an already allocated page in a file
