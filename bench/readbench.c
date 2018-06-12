@@ -147,6 +147,12 @@ int bench(int type, char *path) {
 	idx = openIndex(path);
 	if (idx == NULL) return -1;
 
+	if (beet_index_type(idx) != type) {
+		fprintf(stderr, "wrong type!\n");
+		beet_index_close(idx);
+		return -1;
+	}
+
 	d = calloc(it, sizeof(uint64_t));
 	if (d == NULL) {
 		fprintf(stderr, "out-of-mem\n");

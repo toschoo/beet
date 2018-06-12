@@ -66,6 +66,12 @@ beet_err_t beet_index_open(char *path, void *handle,
 void beet_index_close(beet_index_t idx);
 
 /* ------------------------------------------------------------------------
+ * Get index type
+ * ------------------------------------------------------------------------
+ */
+int beet_index_type(beet_index_t idx); 
+
+/* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index without updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------

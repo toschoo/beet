@@ -519,6 +519,17 @@ void beet_index_close(beet_index_t idx) {
 }
 
 /* ------------------------------------------------------------------------
+ * Get Index type
+ * ------------------------------------------------------------------------
+ */
+int beet_index_type(beet_index_t idx) {
+	if (idx == NULL) return -1;
+	if (idx->subidx != NULL) return BEET_INDEX_HOST;
+	if (idx->tree->dsize == 0) return BEET_INDEX_NULL;
+	return BEET_INDEX_PLAIN;
+}
+
+/* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index without updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------
