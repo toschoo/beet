@@ -4,6 +4,7 @@
  * - height
  * - count nodes | leaves | internals | keys
  * - config
+ * - version
  * - show node(s)
  * ========================================================================
  */
@@ -47,9 +48,11 @@ void helptxt(char *prog) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "command:\n");
 	fprintf(stderr, "--------\n");
-	fprintf(stderr, "'create': create a b+tree physically on disk\n");
-	fprintf(stderr, "'config': show the tree configuration\n");
-	fprintf(stderr, "'height': compute the height of the tree\n");
+	fprintf(stderr, "'help'   : print this message\n");
+	fprintf(stderr, "'version': print current version of the library\n");
+	fprintf(stderr, "'create' : create a b+tree physically on disk\n");
+	fprintf(stderr, "'config' : show the tree configuration\n");
+	fprintf(stderr, "'height' : compute the height of the tree\n");
 	fprintf(stderr, "'count' 'leaves'|'internals'|'nodes'|'keys':\n");
 	fprintf(stderr, "         count the leaves, etc. in the tree\n");
 	fprintf(stderr, "\n");
@@ -62,14 +65,14 @@ void helptxt(char *prog) {
 	fprintf(stderr, "       2: PLAIN Index\n");
 	fprintf(stderr, "       3: HOST  Index\n");
 	fprintf(stderr,
-	"-subpath: path to embedded index (mandatory if type = HOST\n");
+	"-subpath: path to embedded index (mandatory if type = HOST)\n");
 	fprintf(stderr,
 	"-leaf:     number of keys in leaf nodes (mandatory)\n");
 	fprintf(stderr, 
 	"-internal: number of keys in internal nodes (mandatory)\n");
 	fprintf(stderr, "-key: size of key (mandatory)\n");
 	fprintf(stderr, "-data: size of data (mandatory if type = PLAIN)\n");
-	fprintf(stderr, "-cache: size of cache (default: 10000\n");
+	fprintf(stderr, "-cache: size of cache (default: 10000)\n");
 	fprintf(stderr,
 	"-compare: symbol of user-defined compare function (mandatory)\n");
 	fprintf(stderr,
@@ -375,8 +378,16 @@ int handlecount(int argc, char **argv,
 		return -1;
 	}
 	if (strcasecmp(subcmd, "nodes") == 0) {
-		l = count(path, "leaf"); if (l < 0) return -1;
-		i = count(path, "nonleaf"); if (i < 0) return -1;
+		l = count(path, "leaf");
+		if (l < 0) {
+			beet_config_destroy(&cfg);
+			return -1;
+		}
+		i = count(path, "nonleaf"); 
+		if (i < 0) {
+			beet_config_destroy(&cfg);
+			return -1;
+		}
 
 		l /= cfg.leafPageSize;
 		i /= cfg.intPageSize;
@@ -386,27 +397,37 @@ int handlecount(int argc, char **argv,
 		x = 0;
 	}
 	else if (strcasecmp(subcmd, "leaves") == 0) {
-		l = count(path,"leaf"); if (l < 0) return -1;
+		l = count(path,"leaf");
+		if (l < 0) {
+			beet_config_destroy(&cfg);
+			return -1;
+		}
 		l /= cfg.leafPageSize;
 		fprintf(stdout, "leaves in %s: %d\n", path, l);
 		x = 0;
 	}
 	else if (strcasecmp(subcmd, "internals") == 0) {
-		i = count(path,"nonleaf"); if (i < 0) return -1;
+		i = count(path,"nonleaf");
+		if (i < 0) {
+			beet_config_destroy(&cfg);
+			return -1;
+		}
 		i /= cfg.intPageSize;
 		fprintf(stdout, "internals in %s: %d\n", path, i);
 		x = 0;
 	}
 	else if (strcasecmp(subcmd, "keys") == 0) {
 		global_handle = beet_lib_init(global_lib);
-		if (global_handle == NULL) return -1;
-		k = countkeys(path); if (k < 0) return -1;
+		if (global_handle == NULL) {
+			beet_config_destroy(&cfg);
+			return -1;
+		}
+		k = countkeys(path); if (k < 0) {
+			beet_config_destroy(&cfg);
+			return -1;
+		}
 		fprintf(stdout, "keys in %s: %lu\n", path, k);
 		x = 0;
-	}
-	if (global_handle != NULL) {
-		beet_lib_close(global_handle);
-		global_handle = NULL;
 	}
 	beet_config_destroy(&cfg);
 	if (x == 0) return 0;
@@ -444,7 +465,7 @@ int handleconfig(int argc, char **argv, char *path) {
 	fprintf(stdout, "Config for %s:\n", path);
 	fprintf(stdout, "type           : %s\n", typedesc(cfg.indexType));
 	fprintf(stdout, "leaf page size : %u\n", cfg.leafPageSize);
-	fprintf(stdout, "int. page size : %u\n", cfg.leafPageSize);
+	fprintf(stdout, "int. page size : %u\n", cfg.intPageSize);
 	fprintf(stdout, "keys per leaf  : %u\n", cfg.leafNodeSize);
 	fprintf(stdout, "keys per int.  : %u\n", cfg.intNodeSize);
 	fprintf(stdout, "key size       : %u\n", cfg.keySize);
@@ -457,6 +478,15 @@ int handleconfig(int argc, char **argv, char *path) {
 	fprintf(stdout, "destroy symbol : %s\n", cfg.rscdest);
 
 	beet_config_destroy(&cfg);
+	return 0;
+}
+
+/* ------------------------------------------------------------------------
+ * show version
+ * ------------------------------------------------------------------------
+ */
+int handleversion() {
+	beet_version_print();
 	return 0;
 }
 
@@ -478,10 +508,6 @@ int handlecmd(int argc, char **argv, char *cmd, char *path) {
 		global_handle = beet_lib_init(global_lib);
 		if (global_handle == NULL) return -1;
 		x = height(path);
-		if (global_handle != NULL) {
-			beet_lib_close(global_handle);
-			global_handle = NULL;
-		}
 		return x;
 	}
 	if (strcasecmp(cmd, "count") == 0) {
@@ -492,10 +518,6 @@ int handlecmd(int argc, char **argv, char *cmd, char *path) {
 	if (strcasecmp(cmd, "config") == 0) {
 		return handleconfig(argc, argv, path);
 	}
-	if (global_handle != NULL) {
-		beet_lib_close(global_handle);
-		global_handle = NULL;
-	}
 	fprintf(stderr, "not implemented: %s\n", cmd);
 	return -1;
 }
@@ -505,6 +527,7 @@ int handlecmd(int argc, char **argv, char *cmd, char *path) {
  * ------------------------------------------------------------------------
  */
 int checkcmd(char *cmd) {
+	if (cmd == NULL) return -1;
 	if (strnlen(cmd, 4097) > 4096) {
 		fprintf(stderr, "unknown command\n");
 		return -1;
@@ -517,6 +540,7 @@ int checkcmd(char *cmd) {
  * ------------------------------------------------------------------------
  */
 int checkpath(char *path) {
+	if (path == NULL) return -1;
 	if (strnlen(path, 4097) > 4096) {
 		fprintf(stderr, "path too long\n");
 		return -1;
@@ -543,6 +567,14 @@ int main(int argc, char **argv) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
+	if (strcasecmp(cmd, "help") == 0) {
+		helptxt(argv[0]);
+		return EXIT_SUCCESS;
+	}
+	if (strcasecmp(cmd, "version") == 0) {
+		handleversion();
+		return EXIT_SUCCESS;
+	}
 	path = argv[2];
 	if (checkpath(path) != 0) {
 		helptxt(argv[0]);
@@ -550,7 +582,11 @@ int main(int argc, char **argv) {
 	}
 	if (handlecmd(argc, argv, cmd, path) != 0) {
 		helptxt(argv[0]);
-		return EXIT_FAILURE;
+		rc = EXIT_FAILURE;
+	}
+	if (global_handle != NULL) {
+		beet_lib_close(global_handle);
+		global_handle = NULL;
 	}
 	return rc;
 }

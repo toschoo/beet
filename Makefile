@@ -42,7 +42,8 @@ OBJ = $(SRC)/lock.o   \
       $(SRC)/tree.o   \
       $(SRC)/config.o \
       $(SRC)/iter.o   \
-      $(SRC)/index.o
+      $(SRC)/index.o  \
+      $(SRC)/version.o
 
 DEP = $(HDR)/types.h   \
       $(SRC)/lock.h    \

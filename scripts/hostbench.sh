@@ -41,7 +41,7 @@ then
 	exit 1
 fi
 
-bin/beet create $host -type 3 -leaf 255 -internal 340 -key 8 \
+bin/beet create $host -type 3 -leaf 340 -internal 340 -key 8 \
                       -subpath "$emb" \
                       -compare "beetSmokeUInt64Compare"
 if [ $? -ne 0 ]
