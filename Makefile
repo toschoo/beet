@@ -86,9 +86,10 @@ debug:	CFLAGS += -g
 debug:	default
 debug:	tools
 
-install:	$(OUTLIB)/libbeet.so
+install:	$(OUTLIB)/libbeet.so $(BIN)/beet
 		cp $(OUTLIB)/libbeet.so /usr/local/lib/
 		cp -r include/beet /usr/local/include/
+		cp bin/beet /usr/local/bin
 
 run:	
 
