@@ -115,7 +115,7 @@ int initTree(beet_tree_t *tree, char *base,
 
 	ds = ins == NULL ? 0 : sizeof(beet_pageid_t);
 	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, ds,
-	          nlfs, lfs, roof, &compare, NULL, NULL, ins);
+	    nlfs, lfs, roof, &compare, NULL, NULL, NULL, ins);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot initialise rider");
 		return -1;

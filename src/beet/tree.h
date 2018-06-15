@@ -55,6 +55,7 @@ beet_err_t beet_tree_init(beet_tree_t    *tree,
                           beet_compare_t   cmp,
                           beet_rscinit_t rinit,
                           beet_rscdest_t rdest,
+                          void            *rsc,
                           beet_ins_t     *ins);
 
 /* ------------------------------------------------------------------------

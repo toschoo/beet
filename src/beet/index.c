@@ -464,7 +464,7 @@ static beet_err_t openIndex(char *path, void *handle,
 	                     nolfs, lfs,
 	                     sidx->roof,
 	                     cmp,rinit,rdst,
-                             ins);
+	                     ocfg->rsc, ins);
 	if (err != BEET_OK) {
 		free(ins);
 		beet_rider_destroy(lfs); free(lfs);

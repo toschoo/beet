@@ -91,6 +91,7 @@ void beet_open_config_ignore(beet_open_config_t *cfg) {
 	cfg->compare = NULL;
 	cfg->rscinit = NULL;
 	cfg->rscdest = NULL;
+	cfg->rsc     = NULL;
 }
 
 /* ------------------------------------------------------------------------

@@ -33,7 +33,7 @@ typedef struct {
 #define DEREFTOL(x) \
 	((beetSmokeDouble_t*)x)->tolerance
 
-beet_err_t beetSmokeDoubleInit(void **rsc) {
+beet_err_t beetSmokeDoubleInit(void **rsc, void* ignore) {
 	*rsc = malloc(sizeof(beetSmokeDouble_t));
 	if (*rsc == NULL) return BEET_ERR_NOMEM;
 	DEREFTOL(*rsc) = 0.01;
@@ -51,7 +51,3 @@ char beetSmokeDoubleCompare(const void *one, const void *two, void *rsc) {
 	if (DEREFFLOAT(one) - DEREFTOL(rsc) > DEREFFLOAT(two)) return BEET_CMP_GREATER;
 	return BEET_CMP_EQUAL;
 }
-
-
-
-
