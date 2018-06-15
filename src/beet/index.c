@@ -325,7 +325,7 @@ beet_err_t beet_index_drop(char *path) {
 	REMOVE(p, LEAF, s);
 	REMOVE(p, INTERN, s);
 	REMOVE(p, "config", s);
-	REMOVE(p, "rook", s);
+	REMOVE(p, "roof", s);
 
 	return BEET_OK;
 }
