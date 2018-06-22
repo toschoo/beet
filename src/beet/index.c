@@ -540,6 +540,16 @@ beet_compare_t beet_index_getCompare(beet_index_t idx) {
 }
 
 /* ------------------------------------------------------------------------
+ * Get user-defined resource
+ * ------------------------------------------------------------------------
+ */
+void *beet_index_getResource(beet_index_t idx) {
+	if (idx == NULL) return NULL;
+	if (idx->tree == NULL) return NULL;
+	return idx->tree->rsc;
+}
+
+/* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index without updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------
