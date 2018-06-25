@@ -499,7 +499,6 @@ void destroyThreads(pthread_t *tids, int threads) {
 		if (x != 0) {
 			fprintf(stderr, "cannot join pthread: %d\n", x);
 		}
-		pthread_detach(tids[i]);
 	}
 	free(tids);
 }
