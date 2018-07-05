@@ -206,6 +206,8 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 		}
 		if (err != BEET_OK) return err;
 
+		if (iter->node->size == 0) return BEET_ERR_EOF;
+
 		if (iter->from != NULL) {
 			err = getfrom(iter);
 			if (err != BEET_OK) return err;
