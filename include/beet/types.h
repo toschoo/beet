@@ -39,7 +39,7 @@ typedef struct {
 
 #define BEET_VERSION_FIRST 0
 #define BEET_VERSION_MAJOR 0
-#define BEET_VERSION_MINOR 1
+#define BEET_VERSION_MINOR 2
 #define BEET_VERSION_HOTFX 0
 
 /* -----------------------------------------------------------------------
@@ -74,7 +74,7 @@ typedef char (*beet_compare_t)(const void*, const void*, void*);
  * resource initialisation and destruction
  * ------------------------------------------------------------------------
  */
-typedef beet_err_t (*beet_rscinit_t)(void**);
+typedef beet_err_t (*beet_rscinit_t)(void**, void*);
 typedef void (*beet_rscdest_t)(void**);
 
 /* -----------------------------------------------------------------------

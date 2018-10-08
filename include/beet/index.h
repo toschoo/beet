@@ -72,6 +72,18 @@ void beet_index_close(beet_index_t idx);
 int beet_index_type(beet_index_t idx); 
 
 /* ------------------------------------------------------------------------
+ * Get index compare method
+ * ------------------------------------------------------------------------
+ */
+beet_compare_t beet_index_getCompare(beet_index_t idx);
+
+/* ------------------------------------------------------------------------
+ * Get user-defined resource
+ * ------------------------------------------------------------------------
+ */
+void *beet_index_getResource(beet_index_t idx);
+
+/* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index without updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------

@@ -325,7 +325,7 @@ beet_err_t beet_index_drop(char *path) {
 	REMOVE(p, LEAF, s);
 	REMOVE(p, INTERN, s);
 	REMOVE(p, "config", s);
-	REMOVE(p, "rook", s);
+	REMOVE(p, "roof", s);
 
 	return BEET_OK;
 }
@@ -464,7 +464,7 @@ static beet_err_t openIndex(char *path, void *handle,
 	                     nolfs, lfs,
 	                     sidx->roof,
 	                     cmp,rinit,rdst,
-                             ins);
+	                     ocfg->rsc, ins);
 	if (err != BEET_OK) {
 		free(ins);
 		beet_rider_destroy(lfs); free(lfs);
@@ -527,6 +527,26 @@ int beet_index_type(beet_index_t idx) {
 	if (idx->subidx != NULL) return BEET_INDEX_HOST;
 	if (idx->tree->dsize == 0) return BEET_INDEX_NULL;
 	return BEET_INDEX_PLAIN;
+}
+
+/* ------------------------------------------------------------------------
+ * Get index compare method
+ * ------------------------------------------------------------------------
+ */
+beet_compare_t beet_index_getCompare(beet_index_t idx) {
+	if (idx == NULL) return NULL;
+	if (idx->tree == NULL) return NULL;
+	return idx->tree->cmp;
+}
+
+/* ------------------------------------------------------------------------
+ * Get user-defined resource
+ * ------------------------------------------------------------------------
+ */
+void *beet_index_getResource(beet_index_t idx) {
+	if (idx == NULL) return NULL;
+	if (idx->tree == NULL) return NULL;
+	return idx->tree->rsc;
 }
 
 /* ------------------------------------------------------------------------

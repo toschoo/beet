@@ -183,7 +183,7 @@ int initTree(beet_tree_t *tree, char *base,
 	if (initRider(nlfs, base, name2) != 0) return -1;
 
 	err = beet_tree_init(tree, NODESZ, NODESZ, KEYSZ, DATASZ,
-	                  nlfs, lfs, roof, &cmp, NULL, NULL, ins);
+	            nlfs, lfs, roof, &cmp, NULL, NULL, NULL, ins);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot initialise rider");
 		return -1;
@@ -499,7 +499,6 @@ void destroyThreads(pthread_t *tids, int threads) {
 		if (x != 0) {
 			fprintf(stderr, "cannot join pthread: %d\n", x);
 		}
-		pthread_detach(tids[i]);
 	}
 	free(tids);
 }

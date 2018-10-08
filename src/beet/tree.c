@@ -332,6 +332,7 @@ beet_err_t beet_tree_init(beet_tree_t    *tree,
                           beet_compare_t   cmp,
                           beet_rscinit_t rinit,
                           beet_rscdest_t rdest,
+                          void            *rsc,
                           beet_ins_t      *ins) {
 	beet_err_t    err;
 
@@ -352,7 +353,7 @@ beet_err_t beet_tree_init(beet_tree_t    *tree,
 
 	/* user-defined resource */
 	if (tree->rinit != NULL) {
-		err = tree->rinit(&tree->rsc);
+		err = tree->rinit(&tree->rsc, rsc);
 		if (err != BEET_OK) return err;
 	}
 

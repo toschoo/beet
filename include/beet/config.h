@@ -122,6 +122,7 @@ typedef struct {
 	beet_compare_t compare; /* pointer to compare function       */
 	beet_rscinit_t rscinit; /* pointer to rsc init function      */
 	beet_rscinit_t rscdest; /* pointer to rsc destroyer function */
+	void              *rsc; /* passed in to rscinit              */
 } beet_open_config_t;
 
 /* ------------------------------------------------------------------------
