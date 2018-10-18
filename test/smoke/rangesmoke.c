@@ -11,7 +11,8 @@
 #include <string.h>
 #include <time.h>
 
-#define IDX "rsc/idx50"
+#define BASE "rsc"
+#define IDX "idx50"
 
 void errmsg(beet_err_t err, char *msg) {
 	fprintf(stderr, "%s: %s (%d)\n", msg, beet_errdesc(err), err);
@@ -25,7 +26,7 @@ beet_config_t config;
 int createIndex(beet_config_t *cfg) {
 	beet_err_t err;
 
-	err = beet_index_create(IDX, 1, cfg);
+	err = beet_index_create(BASE, IDX, 1, cfg);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create index");
 		return -1;
@@ -40,7 +41,7 @@ beet_index_t openIndex(char *path, void *handle) {
 
 	beet_open_config_ignore(&cfg);
 
-	err = beet_index_open(IDX, handle, &cfg, &idx);
+	err = beet_index_open(BASE, IDX, handle, &cfg, &idx);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open index");
 		return NULL;
@@ -51,7 +52,7 @@ beet_index_t openIndex(char *path, void *handle) {
 int createDropIndex() {
 	beet_err_t err;
 	if (createIndex(&config) != 0) return -1;
-	err = beet_index_drop(IDX);
+	err = beet_index_drop(BASE, IDX);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot drop index");
 		return -1;

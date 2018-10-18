@@ -12,8 +12,9 @@
 #include <string.h>
 #include <time.h>
 
-#define EMBIDX "rsc/idx20"
-#define HOSTIDX "rsc/idx30"
+#define BASE   "rsc"
+#define EMBIDX "idx20"
+#define HOSTIDX "idx30"
 
 void errmsg(beet_err_t err, char *msg) {
 	fprintf(stderr, "%s: %s (%d)\n", msg, beet_errdesc(err), err);
@@ -24,10 +25,10 @@ void errmsg(beet_err_t err, char *msg) {
 
 beet_config_t config;
 
-int createIndex(char *path, beet_config_t *cfg) {
+int createIndex(char *base, char *path, beet_config_t *cfg) {
 	beet_err_t err;
 
-	err = beet_index_create(path, 1, cfg);
+	err = beet_index_create(base, path, 1, cfg);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create index");
 		return -1;
@@ -35,7 +36,7 @@ int createIndex(char *path, beet_config_t *cfg) {
 	return 0;
 }
 
-beet_index_t openIndex(char *path, void *handle) {
+beet_index_t openIndex(char *base, char *path, void *handle) {
 	beet_err_t   err;
 	beet_index_t idx=NULL;
 	beet_open_config_t cfg;
@@ -46,7 +47,7 @@ beet_index_t openIndex(char *path, void *handle) {
 	cfg.rscinit = NULL;
 	cfg.rscdest = NULL;
 
-	err = beet_index_open(path, handle, &cfg, &idx);
+	err = beet_index_open(base, path, handle, &cfg, &idx);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open index");
 		return NULL;
@@ -54,10 +55,10 @@ beet_index_t openIndex(char *path, void *handle) {
 	return idx;
 }
 
-int createDropIndex(char *path) {
+int createDropIndex(char *base, char *path) {
 	beet_err_t err;
-	if (createIndex(path, &config) != 0) return -1;
-	err = beet_index_drop(path);
+	if (createIndex(base, path, &config) != 0) return -1;
+	err = beet_index_drop(base, path);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot drop index");
 		return -1;
@@ -229,7 +230,7 @@ int main() {
 		fprintf(stderr, "cannot load library\n");
 		return EXIT_FAILURE;
 	}
-	if (createIndex(EMBIDX, &config) != 0) {
+	if (createIndex(BASE, EMBIDX, &config) != 0) {
 		fprintf(stderr, "createIndex failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -238,12 +239,12 @@ int main() {
 	config.subPath = EMBIDX;
 	config.dataSize = 4;
 
-	if (createIndex(HOSTIDX, &config) != 0) {
+	if (createIndex(BASE, HOSTIDX, &config) != 0) {
 		fprintf(stderr, "createIndex failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
-	idx = openIndex(HOSTIDX, handle);
+	idx = openIndex(BASE, HOSTIDX, handle);
 	if (idx == NULL) {
 		fprintf(stderr, "openIndex failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
@@ -294,7 +295,7 @@ int main() {
 
 	/* close/open in between */
 	beet_index_close(idx); haveIndex = 0;
-	idx = openIndex(HOSTIDX, handle);
+	idx = openIndex(BASE, HOSTIDX, handle);
 	if (idx == NULL) {
 		fprintf(stderr, "openIndex (2) failed\n");
 		rc = EXIT_FAILURE; goto cleanup;

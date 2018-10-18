@@ -41,7 +41,8 @@ typedef struct beet_index_t *beet_index_t;
  * Create an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_create(char *path,
+beet_err_t beet_index_create(char *base,
+                             char *path,
                              char standalone,
                              beet_config_t *cfg);
 
@@ -49,13 +50,14 @@ beet_err_t beet_index_create(char *path,
  * Remove an index physically from disk
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_drop(char *path);
+beet_err_t beet_index_drop(char *base, char *path);
 
 /* ------------------------------------------------------------------------
  * Open an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_open(char *path, void *handle,
+beet_err_t beet_index_open(char *base, char   *path,
+                           void             *handle,
                            beet_open_config_t  *cfg,
                            beet_index_t       *idx);
 
