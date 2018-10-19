@@ -264,35 +264,55 @@ static inline beet_err_t getins(beet_index_t   idx,
  * Create an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_create(char         *path,
-                             char    standalone,
+beet_err_t beet_index_create(char *base,
+                             char *path,
+                             char  standalone,
                              beet_config_t *cfg) {
 	beet_err_t err;
+	char *p;
+	size_t s;
 
+	if (base == NULL) return BEET_ERR_INVALID;
 	if (path == NULL) return BEET_ERR_INVALID;
 	if (cfg  == NULL) return BEET_ERR_INVALID;
 
-	if (strnlen(path, 4097) > 4096) return BEET_ERR_TOOBIG;
+	s = strnlen(base, 4097);
+	s += strnlen(path, 4097);
+	if (s > 4096) return BEET_ERR_TOOBIG;
 	
 	err = beet_config_validate(cfg);
 	if (err != BEET_OK) return err;
 
-	err = mkpath(path);
-	if (err != BEET_OK) return err;
+	p = malloc(s + 2);
+	sprintf(p, "%s/%s", base, path); 
 
-	err = beet_config_create(path, cfg);
-	if (err != BEET_OK) return err;
+	err = mkpath(p);
+	if (err != BEET_OK) {
+		free(p); return err;
+	}
 
-	err = mkempty(path, LEAF);
-	if (err != BEET_OK) return err;
+	err = beet_config_create(p, cfg);
+	if (err != BEET_OK) {
+		free(p); return err;
+	}
 
-	err = mkempty(path, INTERN);
-	if (err != BEET_OK) return err;
+	err = mkempty(p, LEAF);
+	if (err != BEET_OK) {
+		free(p); return err;
+	}
+
+	err = mkempty(p, INTERN);
+	if (err != BEET_OK) {
+		free(p); return err;
+	}
 
 	if (standalone) {
-		err = mkroof(path);
-		if (err != BEET_OK) return err;
+		err = mkroof(p);
+		if (err != BEET_OK) {
+			free(p); return err;
+		}
 	}
+	free(p);
 	return BEET_OK;
 }
 
@@ -300,32 +320,41 @@ beet_err_t beet_index_create(char         *path,
  * Remove an index physically from disk
  * ------------------------------------------------------------------------
  */
-#define REMOVE(p,f,s) \
-	p = malloc(s+strlen(f)+2); \
-	if (p == NULL) return BEET_ERR_NOMEM; \
-	sprintf(p, "%s/%s", path, f); \
-	if (stat(p, &st) == 0) { \
-		if (remove(p) != 0) { \
-			free(p); \
+#define REMOVE(p,ip,f,s) \
+	ip = malloc(s+strlen(f)+3); \
+	if (ip == NULL) return BEET_ERR_NOMEM; \
+	sprintf(ip, "%s/%s", p, f); \
+	if (stat(ip, &st) == 0) { \
+		if (remove(ip) != 0) { \
+			free(ip); free(p); \
 			return BEET_OSERR_REMOV; \
 		} \
 	} \
-	free(p);
+	free(ip);
 
-beet_err_t beet_index_drop(char *path) {
+beet_err_t beet_index_drop(char *base, char *path) {
 	struct stat st;
+	char *ip;
 	char *p;
 	size_t s;
 
-	s = strnlen(path, 4097);
+	s = strnlen(base, 4097);
+	s += strnlen(path, 4097);
 	if (s > 4096) return BEET_ERR_TOOBIG;
 
-	if (stat(path, &st) != 0) return BEET_ERR_NOFILE;
+	p = malloc(s + 2);
+	if (p == NULL) return BEET_ERR_NOMEM;
 
-	REMOVE(p, LEAF, s);
-	REMOVE(p, INTERN, s);
-	REMOVE(p, "config", s);
-	REMOVE(p, "roof", s);
+	sprintf(p, "%s/%s", base, path);
+
+	if (stat(p, &st) != 0) return BEET_ERR_NOFILE;
+
+	REMOVE(p, ip, LEAF, s);
+	REMOVE(p, ip, INTERN, s);
+	REMOVE(p, ip, "config", s);
+	REMOVE(p, ip, "roof", s);
+
+	free(p);
 
 	return BEET_OK;
 }
@@ -334,7 +363,8 @@ beet_err_t beet_index_drop(char *path) {
  * Helper: open an index
  * ------------------------------------------------------------------------
  */
-static beet_err_t openIndex(char *path, void *handle,
+static beet_err_t openIndex(char *base, char   *path,
+                            void             *handle,
                             beet_open_config_t *ocfg,
                             char          standalone,
                             beet_index_t       *idx) {
@@ -346,25 +376,40 @@ static beet_err_t openIndex(char *path, void *handle,
 	beet_rscinit_t rinit=NULL;
 	beet_rscdest_t rdst=NULL;
 	beet_err_t     err;
+	size_t s;
+	char *p;
 
 	if (idx == NULL) return BEET_ERR_NOIDX;
 	*idx = NULL;
 
+	if (base == NULL) return BEET_ERR_INVALID;
 	if (path == NULL) return BEET_ERR_INVALID;
 	if (handle == NULL && ocfg == NULL) return BEET_ERR_INVALID;
-	if (strnlen(path, 4097) > 4096) return BEET_ERR_TOOBIG;
+
+	s = strnlen(base, 4097);
+	s += strnlen(path, 4097);
+	if (s > 4096) return BEET_ERR_TOOBIG;
 
 	memset(&fcfg, 0, sizeof(beet_config_t));
 
-	err = beet_config_get(path, &fcfg);
-	if (err != BEET_OK) return err;
+	p = malloc(s + 2);
+	if (p == NULL) return BEET_ERR_NOMEM;
+
+	sprintf(p, "%s/%s", base, path);
+
+	err = beet_config_get(p, &fcfg);
+	if (err != BEET_OK) {
+		free(p); return err;
+	}
 	
 	err = beet_config_override(&fcfg, ocfg);
-	if (err != BEET_OK) return err;
+	if (err != BEET_OK) {
+		free(p); return err;
+	}
 
 	sidx = calloc(1,sizeof(struct beet_index_t));
 	if (sidx == NULL) {
-		beet_config_destroy(&fcfg);
+		beet_config_destroy(&fcfg); free(p);
 		return BEET_ERR_NOMEM;
 	}
 
@@ -372,42 +417,43 @@ static beet_err_t openIndex(char *path, void *handle,
 
 	/* open roof and set root */
 	if (standalone) {
-		err = getroof(sidx, path);
+		err = getroof(sidx, p);
 		if (err != BEET_OK) {
 			beet_config_destroy(&fcfg);
-			beet_index_close(sidx);
+			beet_index_close(sidx); free(p);
 			return err;
 		}
 	}
 
 	/* init leaf rider */
-	err = getLeafRider(sidx, path, &fcfg, &lfs);
+	err = getLeafRider(sidx, p, &fcfg, &lfs);
 	if (err != BEET_OK) {
 		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
+		beet_index_close(sidx); free(p);
 		return err;
 	}
 
 	/* init nonleaf rider */
-	err = getIntRider(sidx, path, &fcfg, &nolfs);
+	err = getIntRider(sidx, p, &fcfg, &nolfs);
 	if (err != BEET_OK) {
 		beet_rider_destroy(lfs); free(lfs);
 		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
+		beet_index_close(sidx); free(p);
 		return err;
 	}
 
 	/* open sub index */
 	if (fcfg.indexType == BEET_INDEX_HOST &&
 	    fcfg.subPath != NULL) {
-		err = openIndex(fcfg.subPath,
+		err = openIndex(base,
+                                fcfg.subPath,
 		                handle,ocfg,0,
 		                &sidx->subidx);
 		if (err != BEET_OK) {
 			beet_rider_destroy(lfs); free(lfs);
 			beet_rider_destroy(nolfs); free(nolfs);
 			beet_config_destroy(&fcfg);
-			beet_index_close(sidx);
+			beet_index_close(sidx); free(p);
 			return err;
 		}
 	}
@@ -418,7 +464,7 @@ static beet_err_t openIndex(char *path, void *handle,
 		beet_rider_destroy(lfs); free(lfs);
 		beet_rider_destroy(nolfs); free(nolfs);
 		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
+		beet_index_close(sidx); free(p);
 		return err;
 	}
 
@@ -429,7 +475,7 @@ static beet_err_t openIndex(char *path, void *handle,
 		beet_rider_destroy(lfs); free(lfs);
 		beet_rider_destroy(nolfs); free(nolfs);
 		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
+		beet_index_close(sidx); free(p);
 		return err;
 	}
 
@@ -440,7 +486,7 @@ static beet_err_t openIndex(char *path, void *handle,
 		beet_rider_destroy(lfs); free(lfs);
 		beet_rider_destroy(nolfs); free(nolfs);
 		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
+		beet_index_close(sidx); free(p);
 		return err;
 	}
 
@@ -451,7 +497,7 @@ static beet_err_t openIndex(char *path, void *handle,
 		beet_rider_destroy(lfs); free(lfs);
 		beet_rider_destroy(nolfs); free(nolfs);
 		beet_config_destroy(&fcfg);
-		beet_index_close(sidx);
+		beet_index_close(sidx); free(p);
 		return BEET_ERR_NOMEM;
 	}
 
@@ -466,7 +512,7 @@ static beet_err_t openIndex(char *path, void *handle,
 	                     cmp,rinit,rdst,
 	                     ocfg->rsc, ins);
 	if (err != BEET_OK) {
-		free(ins);
+		free(ins); free(p);
 		beet_rider_destroy(lfs); free(lfs);
 		beet_rider_destroy(nolfs); free(nolfs);
 		beet_config_destroy(&fcfg);
@@ -476,14 +522,14 @@ static beet_err_t openIndex(char *path, void *handle,
 
 	/* make first root node */
 	if (standalone) {
-		err = mkroot(sidx, path);
+		err = mkroot(sidx, p);
 		if (err != BEET_OK) {
 			beet_config_destroy(&fcfg);
-			beet_index_close(sidx);
+			beet_index_close(sidx); free(p);
 			return err;
 		}
 	}
-	beet_config_destroy(&fcfg);
+	beet_config_destroy(&fcfg); free(p);
 	*idx = sidx;
 	return BEET_OK;
 }
@@ -492,10 +538,11 @@ static beet_err_t openIndex(char *path, void *handle,
  * Open an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_open(char *path, void *handle,
+beet_err_t beet_index_open(char *base,   char *path,
+                           void             *handle,
                            beet_open_config_t *ocfg,
                            beet_index_t        *idx) {
-	return openIndex(path, handle, ocfg, 1, idx);
+	return openIndex(base, path, handle, ocfg, 1, idx);
 }
 
 /* ------------------------------------------------------------------------

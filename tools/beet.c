@@ -44,7 +44,7 @@ void *global_handle=NULL;
  * ------------------------------------------------------------------------
  */
 void helptxt(char *prog) {
-	fprintf(stderr, "%s <command> <path> [options]\n", prog);
+	fprintf(stderr, "%s <command> <base> <path> [options]\n", prog);
 	fprintf(stderr, "\n");
 	fprintf(stderr, "command:\n");
 	fprintf(stderr, "--------\n");
@@ -91,7 +91,7 @@ int parsecreatecmd(int argc, char **argv) {
 	int err = 0;
 
 	global_lsize = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 3, "leaf", 0, &err);
+	            argc, argv, 4, "leaf", 0, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error (lsize): %d\n", err);
 		return -1;
@@ -99,7 +99,7 @@ int parsecreatecmd(int argc, char **argv) {
 	if (global_lsize == 0) return -1;
 
 	global_nsize = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 3, "internal", 0, &err);
+	            argc, argv, 4, "internal", 0, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error (nsize): %d\n", err);
 		return -1;
@@ -107,7 +107,7 @@ int parsecreatecmd(int argc, char **argv) {
 	if (global_nsize == 0) return -1;
 
 	global_ksize = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 3, "key", 0, &err);
+	            argc, argv, 4, "key", 0, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error (ksize): %d\n", err);
 		return -1;
@@ -115,7 +115,7 @@ int parsecreatecmd(int argc, char **argv) {
 	if (global_ksize == 0) return -1;
 
 	global_type = (uint32_t)ts_algo_args_findUint(
-	 argc, argv, 3, "type", BEET_INDEX_PLAIN, &err);
+	 argc, argv, 4, "type", BEET_INDEX_PLAIN, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error (type): %d\n", err);
 		return -1;
@@ -127,7 +127,7 @@ int parsecreatecmd(int argc, char **argv) {
 	case BEET_INDEX_HOST: 
 		global_dsize = sizeof(beet_pageid_t);
 		global_path = ts_algo_args_findString(
-		 argc, argv, 3, "subpath", NULL, &err);
+		 argc, argv, 4, "subpath", NULL, &err);
 		if (err != 0) {
 			fprintf(stderr, "command line error: %d\n", err);
 			return -1;
@@ -137,7 +137,7 @@ int parsecreatecmd(int argc, char **argv) {
 
 	case BEET_INDEX_PLAIN:
 		global_dsize = (uint32_t)ts_algo_args_findUint(
-		                argc, argv, 3, "data", 0, &err);
+		                argc, argv, 4, "data", 0, &err);
 		if (err != 0) {
 			fprintf(stderr, "command line error: %d\n", err);
 			return -1;
@@ -150,21 +150,21 @@ int parsecreatecmd(int argc, char **argv) {
 	}
 
 	global_cache = (uint32_t)ts_algo_args_findUint(
-	            argc, argv, 3, "cache", 10000, &err);
+	            argc, argv, 4, "cache", 10000, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
 	}
 
 	global_stndaln = ts_algo_args_findBool(
-	            argc, argv, 3, "standalone", 1, &err);
+	            argc, argv, 4, "standalone", 1, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
 	}
 
 	global_compare = ts_algo_args_findString(
-	            argc, argv, 3, "compare", NULL, &err);
+	            argc, argv, 4, "compare", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -172,14 +172,14 @@ int parsecreatecmd(int argc, char **argv) {
 	if (global_compare == NULL) return -1;
 
 	global_rscinit = ts_algo_args_findString(
-	            argc, argv, 3, "init", NULL, &err);
+	            argc, argv, 4, "init", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
 	}
 
 	global_rscdest = ts_algo_args_findString(
-	            argc, argv, 3, "destroy", NULL, &err);
+	            argc, argv, 4, "destroy", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -195,7 +195,7 @@ int parsecountcmd(int argc, char **argv) {
 	int err = 0;
 
 	global_lib = ts_algo_args_findString(
-	            argc, argv, 3, "lib", NULL, &err);
+	            argc, argv, 4, "lib", NULL, &err);
 	if (err != 0) {
 		fprintf(stderr, "command line error: %d\n", err);
 		return -1;
@@ -218,12 +218,23 @@ void errmsg(beet_err_t err, char *msg) {
  * create the index
  * ------------------------------------------------------------------------
  */
-int createIndex(char *path) {
+int createIndex(char *base, char *path) {
 	beet_config_t cfg;
 	beet_err_t    err;
 	struct stat    st;
+	char *p;
 
-	if (stat(path, &st) == 0) return 0;
+	
+	p = malloc(strlen(base) + strlen(path) + 2);
+	if (p == NULL) {
+		fprintf(stderr, "out-of-memory\n");
+		return -1;
+	}
+	sprintf(p, "%s/%s", base, path);
+	if (stat(p, &st) == 0) {
+		free(p); return 0;
+	}
+	free(p);
 
 	beet_config_init(&cfg);
 
@@ -246,7 +257,7 @@ int createIndex(char *path) {
 	cfg.rscinit = global_rscinit;
 	cfg.rscdest = global_rscdest;
 
-	err = beet_index_create(path, 1, &cfg);
+	err = beet_index_create(base, path, 1, &cfg);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create index");
 		return -1;
@@ -258,14 +269,14 @@ int createIndex(char *path) {
  * open the index
  * ------------------------------------------------------------------------
  */
-beet_index_t openIndex(char *path) {
+beet_index_t openIndex(char *base, char *path) {
 	beet_index_t idx;
 	beet_open_config_t cfg;
 	beet_err_t err;
 
 	beet_open_config_ignore(&cfg);
 
-	err = beet_index_open(path, global_handle, &cfg, &idx);
+	err = beet_index_open(base, path, global_handle, &cfg, &idx);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open index");
 		return NULL;
@@ -277,12 +288,12 @@ beet_index_t openIndex(char *path) {
  * compute the height
  * ------------------------------------------------------------------------
  */
-int height(char *path) {
+int height(char *base, char *path) {
 	beet_err_t   err;
 	beet_index_t idx;
 	uint32_t       h;
 
-	idx = openIndex(path);
+	idx = openIndex(base, path);
 	if (idx == NULL) return -1;
 
 	err = beet_index_height(idx, &h);
@@ -300,16 +311,16 @@ int height(char *path) {
  * count nodes
  * ------------------------------------------------------------------------
  */
-int count(char *path, char *name) {
+int count(char *base, char *path, char *name) {
 	char *p;
 	struct stat st;
 
-	p = malloc(strlen(path) + strlen(name) + 2);
+	p = malloc(strlen(base) + strlen(path) + strlen(name) + 3);
 	if (p == NULL) {
 		fprintf(stderr, "out-of-memory\n");
 		return -1;
 	}
-	sprintf(p, "%s/%s", path, name);
+	sprintf(p, "%s/%s/%s", base, path, name);
 	if (stat(p, &st) != 0) {
 		fprintf(stderr, "index does not exist\n");
 		free(p); return -1;
@@ -322,14 +333,14 @@ int count(char *path, char *name) {
  * count keys
  * ------------------------------------------------------------------------
  */
-int64_t countkeys(char *path) {
+int64_t countkeys(char *base, char *path) {
 	beet_err_t   err;
 	beet_index_t idx;
 	beet_iter_t iter;
 	int64_t c=0;
 	void *k=NULL;
 
-	idx = openIndex(path);
+	idx = openIndex(base,path);
 	if (idx == NULL) return -1;
 
 	err = beet_iter_alloc(idx, &iter);
@@ -363,6 +374,7 @@ int64_t countkeys(char *path) {
  */
 int handlecount(int argc, char **argv,
                           char  *subcmd,
+                          char  *base,
                           char  *path) {
 	beet_err_t    err;
 	beet_config_t cfg;
@@ -370,20 +382,28 @@ int handlecount(int argc, char **argv,
 	int l=0;
 	int i=0;
 	int x=-1;
+	char *p;
+
+	p = malloc(strlen(base) + strlen(path) + 2);
+	if (p == NULL) {
+		fprintf(stderr, "out-of-memory\n");
+		return -1;
+	}
+	sprintf(p, "%s/%s", base, path);
 
 	memset(&cfg, 0, sizeof(beet_config_t));
-	err = beet_config_get(path, &cfg);
+	err = beet_config_get(p, &cfg); free(p);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open config");
 		return -1;
 	}
 	if (strcasecmp(subcmd, "nodes") == 0) {
-		l = count(path, "leaf");
+		l = count(base, path, "leaf");
 		if (l < 0) {
 			beet_config_destroy(&cfg);
 			return -1;
 		}
-		i = count(path, "nonleaf"); 
+		i = count(base, path, "nonleaf"); 
 		if (i < 0) {
 			beet_config_destroy(&cfg);
 			return -1;
@@ -397,7 +417,7 @@ int handlecount(int argc, char **argv,
 		x = 0;
 	}
 	else if (strcasecmp(subcmd, "leaves") == 0) {
-		l = count(path,"leaf");
+		l = count(base, path,"leaf");
 		if (l < 0) {
 			beet_config_destroy(&cfg);
 			return -1;
@@ -407,7 +427,7 @@ int handlecount(int argc, char **argv,
 		x = 0;
 	}
 	else if (strcasecmp(subcmd, "internals") == 0) {
-		i = count(path,"nonleaf");
+		i = count(base, path,"nonleaf");
 		if (i < 0) {
 			beet_config_destroy(&cfg);
 			return -1;
@@ -422,7 +442,7 @@ int handlecount(int argc, char **argv,
 			beet_config_destroy(&cfg);
 			return -1;
 		}
-		k = countkeys(path); if (k < 0) {
+		k = countkeys(base, path); if (k < 0) {
 			beet_config_destroy(&cfg);
 			return -1;
 		}
@@ -452,12 +472,20 @@ const char *typedesc(int t) {
  * show config
  * ------------------------------------------------------------------------
  */
-int handleconfig(int argc, char **argv, char *path) {
+int handleconfig(int argc, char **argv, char *base, char *path) {
 	beet_err_t    err;
 	beet_config_t cfg;
+	char *p;
 
 	memset(&cfg, 0, sizeof(beet_config_t));
-	err = beet_config_get(path, &cfg);
+	
+	p = malloc(strlen(base) + strlen(path) + 2);
+	if (p == NULL) {
+		fprintf(stderr, "out-of-memory\n");
+		return -1;
+	}
+	sprintf(p, "%s/%s", base, path);
+	err = beet_config_get(p, &cfg); free(p);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open config");
 		return -1;
@@ -494,29 +522,30 @@ int handleversion() {
  * handle command
  * ------------------------------------------------------------------------
  */
-int handlecmd(int argc, char **argv, char *cmd, char *path) {
+int handlecmd(int argc, char **argv, char *cmd, char *base, char *path) {
 	int x = 0;
 	char *subcmd=NULL;
-	char *path2;
+	char *base2, *path2;
 
 	if (strcasecmp(cmd, "create") == 0) {
 		if (parsecreatecmd(argc, argv) != 0) return -1;
-		return createIndex(path);
+		return createIndex(base, path);
 	}
 	if (parsecountcmd(argc, argv) != 0) return -1;
 	if (strcasecmp(cmd, "height") == 0) {
 		global_handle = beet_lib_init(global_lib);
 		if (global_handle == NULL) return -1;
-		x = height(path);
+		x = height(base, path);
 		return x;
 	}
 	if (strcasecmp(cmd, "count") == 0) {
 		subcmd = argv[2];
-		path2 = argv[3];
-		return handlecount(argc, argv, subcmd, path2);
+		base2 = argv[3];
+		path2 = argv[4];
+		return handlecount(argc, argv, subcmd, base2,path2);
 	}
 	if (strcasecmp(cmd, "config") == 0) {
-		return handleconfig(argc, argv, path);
+		return handleconfig(argc, argv, base, path);
 	}
 	fprintf(stderr, "not implemented: %s\n", cmd);
 	return -1;
@@ -555,7 +584,7 @@ int checkpath(char *path) {
 int main(int argc, char **argv) {
 	int rc = EXIT_SUCCESS;
 	char *cmd;
-	char *path;
+	char *base, *path;
 
 	if (argc < 2) {
 		helptxt(argv[0]);
@@ -575,12 +604,17 @@ int main(int argc, char **argv) {
 		handleversion();
 		return EXIT_SUCCESS;
 	}
-	path = argv[2];
+	base = argv[2];
+	if (checkpath(base) != 0) {
+		helptxt(argv[0]);
+		return EXIT_FAILURE;
+	}
+	path = argv[3];
 	if (checkpath(path) != 0) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
-	if (handlecmd(argc, argv, cmd, path) != 0) {
+	if (handlecmd(argc, argv, cmd, base, path) != 0) {
 		helptxt(argv[0]);
 		rc = EXIT_FAILURE;
 	}

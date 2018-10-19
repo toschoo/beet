@@ -28,7 +28,7 @@ void *global_lib=NULL;
  * ------------------------------------------------------------------------
  */
 void helptxt(char *prog) {
-	fprintf(stderr, "%s <type> <path> [options]\n", prog);
+	fprintf(stderr, "%s <type> <base> <path> [options]\n", prog);
 	fprintf(stderr, "type: null|plain|host\n");
 	fprintf(stderr, "-count: number of keys we (try) to insert\n");
 	fprintf(stderr, "-iter : number of iterations\n");
@@ -70,13 +70,13 @@ void errmsg(beet_err_t err, char *msg) {
 	}
 }
 
-int dropIndex(char *path) {
+int dropIndex(char *base, char *path) {
 	beet_err_t err;
 	struct stat st;
 
 	if (stat(path, &st) != 0) return 0;
 
-	err = beet_index_drop(path);
+	err = beet_index_drop(base, path);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot drop index");
 		return -1;
@@ -84,7 +84,7 @@ int dropIndex(char *path) {
 	return 0;
 }
 
-int createIndex(char *path) {
+int createIndex(char *base, char *path) {
 	beet_config_t cfg;
 	beet_err_t    err;
 	struct stat    st;
@@ -107,7 +107,7 @@ int createIndex(char *path) {
 	cfg.rscinit = NULL;
 	cfg.rscdest = NULL;
 
-	err = beet_index_create(path, 1, &cfg);
+	err = beet_index_create(base, path, 1, &cfg);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create index");
 		return -1;
@@ -115,14 +115,14 @@ int createIndex(char *path) {
 	return 0;
 }
 
-beet_index_t openIndex(char *path) {
+beet_index_t openIndex(char *base, char *path) {
 	beet_index_t idx;
 	beet_open_config_t cfg;
 	beet_err_t err;
 
 	beet_open_config_ignore(&cfg);
 
-	err = beet_index_open(path, global_lib, &cfg, &idx);
+	err = beet_index_open(base, path, global_lib, &cfg, &idx);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open index");
 		return NULL;
@@ -205,7 +205,7 @@ int writehost(beet_index_t idx, uint64_t count) {
 	return 0;
 }
 
-int bench(int type, char *path) {
+int bench(int type, char *base, char *path) {
 	beet_index_t  idx;
 	struct timespec t1, t2;
 	uint64_t d = 0;
@@ -213,9 +213,9 @@ int bench(int type, char *path) {
 	fprintf(stderr, "%s\n", path);
 
 	for(uint32_t i=0; i<global_iter; i++) {
-		if (createIndex(path) != 0) return -1;
+		if (createIndex(base, path) != 0) return -1;
 
-		idx = openIndex(path);
+		idx = openIndex(base, path);
 		if (idx == NULL) return -1;
 
 		if (beet_index_type(idx) != type) {
@@ -273,6 +273,7 @@ int main(int argc, char **argv) {
 	int rc = EXIT_SUCCESS;
 	int t;
 	char *type;
+	char *base;
 	char *path;
 
 	if (argc < 3) {
@@ -285,12 +286,16 @@ int main(int argc, char **argv) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
-	path = argv[2];
+	base = argv[2];
+	if (checkpath(base) != 0) {
+		helptxt(argv[0]);
+		return EXIT_FAILURE;
+	}
+	path = argv[3];
 	if (checkpath(path) != 0) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
 	}
-
 	if (parsecmd(argc, argv) != 0) {
 		helptxt(argv[0]);
 		return EXIT_FAILURE;
@@ -304,7 +309,7 @@ int main(int argc, char **argv) {
 	}
 	fprintf(stderr, "%s %s\n", argv[0], argv[1]);
 
-	if (bench(t, path) != 0) rc = EXIT_FAILURE;
+	if (bench(t, base, path) != 0) rc = EXIT_FAILURE;
 
 	beet_lib_close(global_lib);
 	return rc;

@@ -30,7 +30,7 @@ char compare(const void *one, const void *two, void *ignore) {
 int createIndex(beet_config_t *cfg) {
 	beet_err_t err;
 
-	err = beet_index_create("rsc/idx10", 1, cfg);
+	err = beet_index_create("rsc", "idx10", 1, cfg);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot create index");
 		return -1;
@@ -49,7 +49,7 @@ beet_index_t openIndex(char *path) {
 	cfg.rscinit = NULL;
 	cfg.rscdest = NULL;
 
-	err = beet_index_open("rsc/idx10", NULL, &cfg, &idx);
+	err = beet_index_open("rsc", "idx10", NULL, &cfg, &idx);
 	if (err != BEET_OK) {
 		errmsg(err, "cannot open index");
 		return NULL;
@@ -60,7 +60,7 @@ beet_index_t openIndex(char *path) {
 int createDropIndex(beet_config_t *cfg) {
 	beet_err_t err;
 	if (createIndex(cfg) != 0) return -1;
-	err = beet_index_drop("rsc/idx10");
+	err = beet_index_drop("rsc", "idx10");
 	if (err != BEET_OK) {
 		errmsg(err, "cannot drop index");
 		return -1;
