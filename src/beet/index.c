@@ -321,7 +321,7 @@ beet_err_t beet_index_create(char *base,
  * ------------------------------------------------------------------------
  */
 #define REMOVE(p,ip,f,s) \
-	ip = malloc(s+strlen(f)+2); \
+	ip = malloc(s+strlen(f)+3); \
 	if (ip == NULL) return BEET_ERR_NOMEM; \
 	sprintf(ip, "%s/%s", p, f); \
 	if (stat(ip, &st) == 0) { \
@@ -353,6 +353,8 @@ beet_err_t beet_index_drop(char *base, char *path) {
 	REMOVE(p, ip, INTERN, s);
 	REMOVE(p, ip, "config", s);
 	REMOVE(p, ip, "roof", s);
+
+	free(p);
 
 	return BEET_OK;
 }
