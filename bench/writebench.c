@@ -213,7 +213,9 @@ int bench(int type, char *base, char *path) {
 	fprintf(stderr, "%s\n", path);
 
 	for(uint32_t i=0; i<global_iter; i++) {
-		if (createIndex(base, path) != 0) return -1;
+		if (type == BEET_INDEX_PLAIN) {
+			if (createIndex(base, path) != 0) return -1;
+		}
 
 		idx = openIndex(base, path);
 		if (idx == NULL) return -1;
