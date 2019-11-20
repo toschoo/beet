@@ -58,8 +58,8 @@ void randomRider(beet_rider_t *rider, int *errs) {
 	beet_err_t err;
 	beet_page_t *page;
 	int *buf;
-	beet_pageid_t pid;
-	int x;
+	beet_pageid_t pid=1;
+	int x=1;
 	int k,p;
 
 	for(int i=0; i<1000; i++) {
@@ -477,6 +477,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "cannot create pages\n");
 		return EXIT_FAILURE;
 	}
+	fprintf(stderr, "CREATED\n");
 	if (bench(global_threads, global_max) != 0) {
 		fprintf(stderr, "cannot perform benchmark\n");
 		return EXIT_FAILURE;
