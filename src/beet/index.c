@@ -684,7 +684,7 @@ static beet_err_t getdata(beet_index_t idx,
 	                              idx->tree->rsc);
 	if (slot < 0 || slot > idx->tree->lsize) {
 		beet_tree_release(idx->tree, node); free(node);
-		return BEET_ERR_NOSLOT;
+		return BEET_ERR_KEYNOF;
 	}
 	if (!beet_node_equal(node, slot, idx->tree->ksize,
 	                           key,  idx->tree->cmp,
@@ -793,8 +793,7 @@ beet_err_t beet_index_get(beet_index_t  idx,
 	if (flags & BEET_FLAGS_SUBTREE) {
 		if (idx->subidx == NULL) return BEET_ERR_NOSUB;
 		if (state->root == NULL) return BEET_ERR_INVALID;
-		err = getdata(idx->subidx,
-		              state, key, data);
+		err = getdata(idx->subidx, state, key, data);
 	} else if (flags & BEET_FLAGS_ROOT) {
 		err = getdata(idx, state, key,
 		             (void**)&state->root);

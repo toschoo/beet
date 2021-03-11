@@ -70,9 +70,9 @@ void beet_node_init(beet_node_t *node,
                     char         leaf) {
 	int off = 0;
 
-	node->page = page;
-	node->self = page->pageid;
-	node->leaf = leaf;
+	node->page  = page;
+	node->self  = page->pageid;
+	node->leaf  = leaf;
 
 	memcpy(&node->size, page->data, sizeof(uint32_t));
 	off += sizeof(uint32_t);
@@ -82,6 +82,8 @@ void beet_node_init(beet_node_t *node,
 		memcpy(&node->prev, page->data+off, sizeof(uint32_t));
 		off += sizeof(int32_t);
 	}
+
+	// fprintf(stderr, "NODE SIZE: %d\n", node->size);
 	
 	node->keys = page->data+off;
 	node->kids = page->data+off + keysz*nodesz;
@@ -300,8 +302,9 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	if (node->size >= nsize) return BEET_ERR_BADSIZE;
 
 	/* find slot */
-	int32_t slot = binsearch(node->keys, key, ksize,
-	                  0, node->size, 2, cmp, rsc, 1);
+	int32_t slot = node->size == 0?0:
+	               binsearch(node->keys, key, ksize,
+	                 0, node->size, 2, cmp, rsc, 1);
 	if (slot < 0) return BEET_ERR_NOSLOT;
 
 	/* if we already have that key: add the data */
@@ -333,6 +336,7 @@ beet_pageid_t beet_node_searchPageid(beet_node_t  *node,
                                      const void    *key,
                                      beet_compare_t cmp,
                                      void          *rsc) {
+	if (node->size == 0) return BEET_PAGE_NULL;
 	int idx = binsearch(node->keys, key, keysz,
 	            0, node->size, 2, cmp, rsc, 1);
 	if (idx >= 0 && idx <= node->size) {
@@ -352,8 +356,10 @@ int32_t beet_node_search(beet_node_t  *node,
                          const void    *key,
                          beet_compare_t cmp,
                          void          *rsc) {
-	return binsearch(node->keys, key, keysz,
+	if (node->size == 0) return -1;
+	int idx = binsearch(node->keys, key, keysz,
 	         0, node->size, 2, cmp, rsc, 1);
+	return idx;
 }
 
 /* ------------------------------------------------------------------------

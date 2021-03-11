@@ -59,12 +59,12 @@ void randomRider(beet_rider_t *rider, int *errs) {
 	beet_page_t *page;
 	int *buf;
 	beet_pageid_t pid;
-	int x;
+	int x=0;
 	int k,p;
 
-	for(int i=0; i<1000; i++) {
+	for(int i=0; i<10000; i++) {
 		pid = rand()%global_pages;
-		x = rand()%2;
+		// x = rand()%2;
 
 		/* get page */
 		for(;;) {
