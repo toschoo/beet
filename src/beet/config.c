@@ -314,6 +314,8 @@ static inline beet_err_t readcfg(FILE *f, size_t sz, beet_config_t *cfg) {
 	if (fread(&cfg->keySize, 4, 1, f) != 1) return BEET_OSERR_READ;
 	if (fread(&cfg->dataSize, 4, 1, f) != 1) return BEET_OSERR_READ;
 
+	// fprintf(stderr, "key|data: %u|%u\n", cfg->keySize, cfg->dataSize);
+
 	i+=8;
 
 	if (fread(&cfg->leafCacheSize, 4, 1, f) != 1) return BEET_OSERR_READ;

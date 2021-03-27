@@ -121,6 +121,23 @@ int testDoesExist(beet_index_t idx, int hi) {
 	return 0;
 }
 
+int testDoesNotExist(beet_index_t idx, int hi) {
+	beet_err_t err;
+	int k;
+	for(int i=0; i<100; i++) {
+		k=rand()%hi;
+
+		// fprintf(stderr, "reading %d\n", k);
+
+		err = beet_index_doesExist(idx, &k);
+		if (err != BEET_ERR_KEYNOF) {
+			errmsg(err, "key exists");
+			return -1;
+		}
+	}
+	return 0;
+}
+
 int zerocopyRead(beet_index_t idx, int hi) {
 	beet_state_t state=NULL;
 	beet_err_t err;
@@ -198,6 +215,12 @@ int main() {
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	haveIndex = 1;
+
+	/* no key shall exist */
+	if (testDoesNotExist(idx, 1) != 0) {
+		fprintf(stderr, "testDoesNotExist 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	
 	/* test with 13 (key,value) pairs */
 	if (writeRange(idx, 0, 13) != 0) {
