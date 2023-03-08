@@ -477,6 +477,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "cannot create pages\n");
 		return EXIT_FAILURE;
 	}
+	fprintf(stderr, "CREATED\n");
 	if (bench(global_threads, global_max) != 0) {
 		fprintf(stderr, "cannot perform benchmark\n");
 		return EXIT_FAILURE;
