@@ -27,6 +27,7 @@ typedef struct {
 	beet_pageid_t next; /* next node (leaf only)      */
 	beet_pageid_t prev; /* previous node (leaf only)  */
 	uint32_t      size; /* number of keys in the node */
+	char         *ctrl; /* control block (leaf only)  */
 	char         *keys; /* array of keys              */
 	char         *kids; /* array of pointers          */
 	beet_page_t  *page; /* the page data              */

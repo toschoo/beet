@@ -4,7 +4,7 @@
  * B+Node Abstraction
  * ========================================================================
  *
- * The binary format of a node, which is store in a page, is
+ * The binary format of a node, which is stored in a page, is
  *
  * 1) Internal Node
  *    +------------------------------------------+
@@ -12,7 +12,7 @@
  *    +------------------------------------------+
  *     4byte  keysize*nodesz    4*(nodsz+1)
  *
- *    Here, keysize and nodesz mean the repective size
+ *    Here, keysize and nodesz mean the respective size
  *    stored in the tree structure (i.e. 
  *    - keysize: size of 1 key
  *    - nodesz : max number of keys per node)
@@ -40,16 +40,20 @@
  *    We consequently need n+1 kids for n keys.
  *
  * 2) Leaf Node
- *    +------------------------------------------------------+
- *    | Size | Next | Prev | Keys[nodesize] | Kids[nodesize] |
- *    +------------------------------------------------------+
- *     4byte  4byte  4byte   keysize*nodesz   datasize*nodesz
+ *    +-------------------------------------------------------------------+
+ *    | Size | Next | Prev | Control    | Keys[nodesize] | Kids[nodesize] |
+ *    +-------------------------------------------------------------------+
+ *     4byte  4byte  4byte   nodesz/8+1   keysize*nodesz   datasize*nodesz
  *
  *    The keys, as before, contain the keys of this tree and
  *    the kids contain the data for their keys.
  *
  *    Next points to the next leaf node in the chain.
  *    Prev points to the previous leaf node in the chain.
+ *
+ *    Control is a block of bits that indicate whether the key is
+ *      - actually present or
+ *      - hidden (i.e. soft-deleted)
  *
  *    This way, leaf nodes form a doubly linked list
  *    through which we can iterate scanning a range of keys
@@ -58,6 +62,8 @@
  */
 #include <beet/node.h>
 #include <string.h>
+
+#define CTRLSZ(x) (x/8+1)
 
 /* ------------------------------------------------------------------------
  * initialise a node from a page (i.e. page -> node)
@@ -81,12 +87,24 @@ void beet_node_init(beet_node_t *node,
 		off += sizeof(int32_t);
 		memcpy(&node->prev, page->data+off, sizeof(uint32_t));
 		off += sizeof(int32_t);
+		node->ctrl = page->data+off; off += CTRLSZ(nodesz);
+
+		uint16_t x = 0xdead;
+		memcpy(node->ctrl, &x, 2);
 	}
 
-	// fprintf(stderr, "NODE SIZE: %d\n", node->size);
+	// fprintf(stderr, "NODE SIZE : %d\n", node->size);
 	
-	node->keys = page->data+off;
-	node->kids = page->data+off + keysz*nodesz;
+	node->keys = page->data+off; off += keysz*nodesz;
+	node->kids = page->data+off;
+
+	/* debug
+	fprintf(stderr, "CTRL BLOCK (%u): ", CTRLSZ(nodesz));
+	for(int i=1;i>=0;i--) {
+		fprintf(stderr, "%x", (uint8_t)*(node->ctrl+i));
+	}
+	fprintf(stderr, "\n");
+	*/
 }
 
 /* ------------------------------------------------------------------------
@@ -136,6 +154,11 @@ static inline beet_err_t add2slot(beet_node_t *node,
 
 	/* shift keys starting from 'slot' one to the right */
 	if (shift > 0) memmove(src+ksize,src,shift);
+
+	/* adapt control block:
+           when we shift the the keys, we also need to shift the bits
+           but only in leaf node
+	 */ 
 
 	/* new key goes to 'slot' */
 	memcpy(node->keys+slot*ksize, key, ksize);
@@ -232,7 +255,7 @@ static inline int32_t binsearch(char          *keys,
 		if (x == BEET_CMP_EQUAL) return i;
 		if (x == BEET_CMP_LESS) {
 			e = i-1; // go left
-			if (i < r) r = i; // this is a smaller greater one
+			if (i < r) r = i; // this is the smallest greater one
 		}
 		else s = i+1; // go right
 	}
@@ -269,6 +292,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	if (slot < node->size &&
 	    beet_node_equal(node,slot,ksize,key,cmp,rsc)) {
 		if (node->leaf) {
+			// if key exist and is hidden unhide it
 			*wrote = 1;
 			return ad3ata(node, dsize, slot, data, upd, ins);
 		}
