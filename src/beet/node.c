@@ -89,8 +89,10 @@ void beet_node_init(beet_node_t *node,
 		off += sizeof(int32_t);
 		node->ctrl = page->data+off; off += CTRLSZ(nodesz);
 
+		/* debug
 		uint16_t x = 0xdead;
 		memcpy(node->ctrl, &x, 2);
+		*/
 	}
 
 	// fprintf(stderr, "NODE SIZE : %d\n", node->size);
@@ -138,10 +140,72 @@ static inline beet_err_t ad3ata(beet_node_t *node,
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: test if key at slot is hidden
+ * ------------------------------------------------------------------------
+ */
+static inline uint8_t hidden(beet_node_t  *node,
+                             uint32_t      slot,
+                             uint32_t     keysz) {
+	int     y = slot/8;
+	int     i = slot%8;
+	uint8_t m = 1<<i;
+	return (node->ctrl[y] & m);
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: map for shifting control block
+ * ------------------------------------------------------------------------
+ */
+static inline uint8_t mkmap(int x) {
+	int k=1<<(x+1);
+	for(int i = x; i<8; i++) {
+		k |= k<<1;
+	}
+	return k;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: shift control block to match keys after shift
+ * ------------------------------------------------------------------------
+ */
+static inline void shiftctrl(beet_node_t *node,
+                             uint32_t     slot,
+                             uint32_t    nsize) {
+	int y = slot/8;
+	int i = slot%8;
+
+	uint8_t carry = node->ctrl[y] & 1;
+
+	carry <<= 7; // the last will be the first of the next byte
+
+	uint8_t m = mkmap(i);           // map keep the first part
+	uint8_t n = node->ctrl[y] >> 1; // shift
+
+	m &= node->ctrl[y];             // apply map to old
+	n |= m;                         // apply modified map to new
+
+	node->ctrl[y] = n;              // set result
+
+	for (int z = y+1; z < nsize; z++) {
+
+		uint8_t o = node->ctrl[z]; // old map
+		uint8_t t = o & 1;         // carry
+
+		n = o >> 1;                // shift
+		n |= carry;                // apply carry
+
+		node->ctrl[z] = n;         // set new map
+
+		carry = t << 7;            // update carry
+	}
+}
+
+/* ------------------------------------------------------------------------
  * Helper: add (key,data) to node
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t add2slot(beet_node_t *node,
+                                  uint32_t    nsize,
                                   uint32_t    ksize,
                                   uint32_t    dsize,
                                   uint32_t     slot,
@@ -153,12 +217,10 @@ static inline beet_err_t add2slot(beet_node_t *node,
 	uint32_t dsz;
 
 	/* shift keys starting from 'slot' one to the right */
-	if (shift > 0) memmove(src+ksize,src,shift);
-
-	/* adapt control block:
-           when we shift the the keys, we also need to shift the bits
-           but only in leaf node
-	 */ 
+	if (shift > 0) {
+		memmove(src+ksize,src,shift);
+		if (node->leaf) shiftctrl(node, slot, CTRLSZ(nsize));
+	}
 
 	/* new key goes to 'slot' */
 	memcpy(node->keys+slot*ksize, key, ksize);
@@ -300,7 +362,7 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	}
 
 	/* otherwise: add the key */
-	err = add2slot(node, ksize, dsize, slot, key, data, ins);
+	err = add2slot(node, nsize, ksize, dsize, slot, key, data, ins);
 	if (err != BEET_OK) return err;
 
 	*wrote = 1;
@@ -338,19 +400,28 @@ int32_t beet_node_search(beet_node_t  *node,
                          beet_compare_t cmp,
                          void          *rsc) {
 	if (node->size == 0) return -1;
-	int idx = binsearch(node->keys, key, keysz, node->size, cmp, rsc);
-	return idx;
+	return binsearch(node->keys, key, keysz, node->size, cmp, rsc);
 }
 
 /* ------------------------------------------------------------------------
  * Test that key at slot is equal to 'key'
  * ------------------------------------------------------------------------
  */
-char beet_node_equal(beet_node_t *node,
-                     uint32_t     slot,
-                     uint32_t    keysz,
-                     const void   *key,
-                    beet_compare_t cmp,
-                    void          *rsc) {
+uint8_t beet_node_equal(beet_node_t *node,
+                        uint32_t     slot,
+                        uint32_t    keysz,
+                        const void   *key,
+                       beet_compare_t cmp,
+                       void          *rsc) {
 	return (cmp(key,node->keys+slot*keysz,rsc) == BEET_CMP_EQUAL);
+}
+
+/* ------------------------------------------------------------------------
+ * Test if key at slot is hidden
+ * ------------------------------------------------------------------------
+ */
+uint8_t beet_node_hidden(beet_node_t  *node,
+                         uint32_t      slot,
+                         uint32_t     keysz) {
+	return hidden(node, slot, keysz);
 }

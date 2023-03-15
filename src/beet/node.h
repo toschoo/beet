@@ -116,10 +116,18 @@ int32_t beet_node_search(beet_node_t  *node,
  * Test that key at slot is equal to 'key'
  * ------------------------------------------------------------------------
  */
-char beet_node_equal(beet_node_t  *node,
-                     uint32_t      slot,
-                     uint32_t     keysz,
-                     const void    *key,
-                     beet_compare_t cmp,
-                     void          *rsc);
+uint8_t beet_node_equal(beet_node_t  *node,
+                        uint32_t      slot,
+                        uint32_t     keysz,
+                        const void    *key,
+                        beet_compare_t cmp,
+                        void          *rsc);
+
+/* ------------------------------------------------------------------------
+ * Test if key at slot is hidden
+ * ------------------------------------------------------------------------
+ */
+uint8_t beet_node_hidden(beet_node_t  *node,
+                         uint32_t      slot,
+                         uint32_t     keysz);
 #endif

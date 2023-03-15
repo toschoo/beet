@@ -692,6 +692,7 @@ static beet_err_t getdata(beet_index_t idx,
 		beet_tree_release(idx->tree, node); free(node);
 		return BEET_ERR_KEYNOF;
 	}
+	// if beet_node_hidden release and return
 	if (data != NULL) {
 		*data = beet_node_getData(node, slot,
 		                   idx->tree->dsize);
