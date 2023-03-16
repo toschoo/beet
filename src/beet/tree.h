@@ -90,6 +90,22 @@ beet_err_t beet_tree_upsert(beet_tree_t   *tree,
                             const void    *data);
 
 /* ------------------------------------------------------------------------
+ * Hide a key in the tree without removing data physically
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_hide(beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          const void     *key);
+
+/* ------------------------------------------------------------------------
+ * Uncover a hidden key in the tree.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_unhide(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key);
+
+/* ------------------------------------------------------------------------
  * Get the node that contains the given key
  * ------------------------------------------------------------------------
  */

@@ -790,6 +790,78 @@ static inline beet_err_t insorupsert(beet_tree_t   *tree,
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: hide or uncover data in the tree
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t hide(beet_tree_t   *tree,
+                              beet_pageid_t *root,
+                              const void     *key,
+                              char           undo) {
+	beet_err_t err;
+	beet_err_t err2; /* for LOCK and UNLOCK */
+	ts_algo_list_t nodes;
+	beet_node_t *node, *leaf;
+	int32_t slot;
+	char lock = 1; /* root poiner is locked */
+
+	TREENULL();
+	ROOTNULL();
+
+	if (key  == NULL) return BEET_ERR_NOKEY;
+
+	ts_algo_list_init(&nodes);
+
+	LOCK(WRITE);
+
+	err = getNode(tree, *root, WRITE, &node);
+	if (err != BEET_OK) {
+		UNLOCK(WRITE, &lock);
+		return err;
+	}
+
+	err = findNode(tree, node, &leaf, WRITE, key, &lock, &nodes);
+	if (err != BEET_OK) {
+		unlockAll(tree, &lock, &nodes);
+		return err;
+	}
+
+	err = unlockAll(tree, &lock, &nodes); // unlock all but the leaf
+	if (err != BEET_OK) return err;
+
+	slot = beet_node_search(leaf, tree->ksize,
+	                        key,  tree->cmp,
+	                              tree->rsc);
+	if (slot < 0 || slot > tree->lsize) {
+		err = BEET_ERR_KEYNOF; goto unlock;
+	}
+	if (!beet_node_equal(leaf, slot, tree->ksize,
+	                           key,  tree->cmp,
+	                                 tree->rsc)) {
+		err = BEET_ERR_KEYNOF; goto unlock;
+	}
+
+	uint8_t hidden = beet_node_hidden(leaf, slot);
+	if (hidden) {
+		if (undo) beet_node_unhide(leaf, slot); else {
+			err = BEET_ERR_KEYNOF; goto unlock;
+		}
+	} else { // not hidden
+		if (!undo) beet_node_hide(leaf, slot); else {
+			err = BEET_ERR_KEYNOH; goto unlock;
+		}
+	}
+
+unlock:
+	err = releaseNode(tree, leaf); free(leaf);
+	if (err != BEET_OK) {
+		unlockAll(tree, &lock, &nodes);
+		return err;
+	}
+
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Insert data into the tree without update if the key already exists
  * ------------------------------------------------------------------------
  */
@@ -809,6 +881,26 @@ beet_err_t beet_tree_upsert(beet_tree_t   *tree,
                             const void     *key,
                             const void    *data) {
 	return insorupsert(tree, root, key, data, 1);
+}
+
+/* ------------------------------------------------------------------------
+ * Hide a key in the tree without removing data physically
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_hide(beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          const void     *key) {
+	return hide(tree, root, key, 0);
+}
+
+/* ------------------------------------------------------------------------
+ * Uncover a hidden key in the tree.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_unhide(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key) {
+	return hide(tree, root, key, 1);
 }
 
 /* ------------------------------------------------------------------------

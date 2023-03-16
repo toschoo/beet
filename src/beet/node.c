@@ -144,12 +144,38 @@ static inline beet_err_t ad3ata(beet_node_t *node,
  * ------------------------------------------------------------------------
  */
 static inline uint8_t hidden(beet_node_t  *node,
-                             uint32_t      slot,
-                             uint32_t     keysz) {
+                             uint32_t      slot) {
 	int     y = slot/8;
 	int     i = slot%8;
 	uint8_t m = 1<<i;
 	return (node->ctrl[y] & m);
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: set hidden
+ * ------------------------------------------------------------------------
+ */
+static inline void hide(beet_node_t *node,
+                        uint32_t     slot) {
+	int     y = slot/8;
+	int     i = slot%8;
+	uint8_t m = 1<<i;
+	node->ctrl[y] |= m;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: unset hidden
+ * ------------------------------------------------------------------------
+ */
+static inline void unhide(beet_node_t *node,
+                          uint32_t     slot) {
+	int     y = slot/8;
+	int     i = slot%8;
+	uint8_t m = 1<<i;
+
+	if ((node->ctrl[y] & m)) {
+		node->ctrl[y] ^= m;
+	}
 }
 
 /* ------------------------------------------------------------------------
@@ -354,8 +380,8 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	if (slot < node->size &&
 	    beet_node_equal(node,slot,ksize,key,cmp,rsc)) {
 		if (node->leaf) {
-			// if key exist and is hidden unhide it
 			*wrote = 1;
+			if (beet_node_hidden(node, slot)) unhide(node, slot); // unhide
 			return ad3ata(node, dsize, slot, data, upd, ins);
 		}
 		return BEET_OK;
@@ -421,7 +447,24 @@ uint8_t beet_node_equal(beet_node_t *node,
  * ------------------------------------------------------------------------
  */
 uint8_t beet_node_hidden(beet_node_t  *node,
-                         uint32_t      slot,
-                         uint32_t     keysz) {
-	return hidden(node, slot, keysz);
+                         uint32_t      slot) {
+	return hidden(node, slot);
+}
+
+/* ------------------------------------------------------------------------
+ * Hide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_hide(beet_node_t *node,
+                    uint32_t     slot) {
+	hide(node, slot);
+}
+
+/* ------------------------------------------------------------------------
+ * Unhide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_unhide(beet_node_t *node,
+                      uint32_t     slot) {
+	unhide(node, slot);
 }

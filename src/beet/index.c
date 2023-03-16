@@ -619,6 +619,29 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data) {
 }
 
 /* ------------------------------------------------------------------------
+ * Hide a key from the index. The key won't be found any more
+ * but is physically still in the tree. This operation is much
+ * faster than deleting keys. It is recommended to schedule
+ * regular delete operations to completely remove hidden keys.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_hide(beet_index_t idx, void *key) {
+	IDXNULL();
+	return beet_tree_hide(idx->tree,
+	                     &idx->root, key);
+}
+
+/* ------------------------------------------------------------------------
+ * Uncover a hidden key in the index, i.e. undo beet_index_hide.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_unhide(beet_index_t idx, void *key) {
+	IDXNULL();
+	return beet_tree_unhide(idx->tree,
+	                       &idx->root, key);
+}
+
+/* ------------------------------------------------------------------------
  * Removes a key and all its data from the index
  * TODO: implement!
  * ------------------------------------------------------------------------
@@ -692,7 +715,10 @@ static beet_err_t getdata(beet_index_t idx,
 		beet_tree_release(idx->tree, node); free(node);
 		return BEET_ERR_KEYNOF;
 	}
-	// if beet_node_hidden release and return
+	if (beet_node_hidden(node, slot)) {
+		beet_tree_release(idx->tree, node); free(node);
+		return BEET_ERR_KEYNOF;
+	}
 	if (data != NULL) {
 		*data = beet_node_getData(node, slot,
 		                   idx->tree->dsize);

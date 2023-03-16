@@ -128,6 +128,19 @@ uint8_t beet_node_equal(beet_node_t  *node,
  * ------------------------------------------------------------------------
  */
 uint8_t beet_node_hidden(beet_node_t  *node,
-                         uint32_t      slot,
-                         uint32_t     keysz);
+                         uint32_t      slot);
+
+/* ------------------------------------------------------------------------
+ * Hide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_hide(beet_node_t *node,
+                    uint32_t     slot);
+
+/* ------------------------------------------------------------------------
+ * Unhide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_unhide(beet_node_t *node,
+                      uint32_t     slot);
 #endif
