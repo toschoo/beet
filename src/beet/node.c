@@ -63,7 +63,7 @@
 #include <beet/node.h>
 #include <string.h>
 
-#define CTRLSZ(x) (x/8+1)
+#define CTRLSZ BEET_NODE_CTRLSZ
 
 /* ------------------------------------------------------------------------
  * initialise a node from a page (i.e. page -> node)

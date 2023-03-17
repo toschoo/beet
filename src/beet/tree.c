@@ -398,6 +398,51 @@ static inline beet_err_t setPrev(beet_tree_t *tree,
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: shift a block of bytes left
+ * ------------------------------------------------------------------------
+ */
+static inline void bulkshift(char *buf, int sz, int x) {
+
+	buf[0] <<= x;
+	for (int i=1; i<sz; i++) {
+		char m = buf[i];
+		m >>=(8-x);
+		buf[i-1] |= m;
+		buf[i] <<= x;
+	}
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: split control block
+ * ------------------------------------------------------------------------
+ */
+static inline void splitctrl(beet_tree_t *tree,
+                             beet_node_t  *src,
+                             beet_node_t  *trg,
+                             int         split) {
+	int y = split/8;
+	int i = split%8;
+	int s = BEET_NODE_CTRLSZ(tree->lsize);
+
+	// printf("split bit for %d: %d\n", split, i);
+
+	memcpy(trg->ctrl, src->ctrl+y, s-y);
+	bulkshift(trg->ctrl, s, (8-i));
+
+ 	// set last bits of split byte to 0
+	if (i > 0) {
+		src->ctrl[y] >>= (i-1);
+		src->ctrl[y] <<= (i-1); 
+	}
+
+ 	// erase higher bytes
+	if (y+1 < s) {
+		memset(src->ctrl+y+1, 0, s-y-1);
+	}
+
+}
+
+/* ------------------------------------------------------------------------
  * Helper: split node
  * ------------------------------------------------------------------------
  */
@@ -454,6 +499,9 @@ static inline beet_err_t split(beet_tree_t *tree,
 			free(*trg); *trg = NULL;
 			return err;
 		}
+
+		// copy control block
+		splitctrl(tree, src, *trg, src->size/2+1);
 
 		dsz = tree->dsize;
 		if (dsz > 0) {
@@ -797,7 +845,7 @@ static inline beet_err_t hide(beet_tree_t   *tree,
                               beet_pageid_t *root,
                               const void     *key,
                               char           undo) {
-	beet_err_t err;
+	beet_err_t err = BEET_OK;
 	beet_err_t err2; /* for LOCK and UNLOCK */
 	ts_algo_list_t nodes;
 	beet_node_t *node, *leaf;
@@ -845,20 +893,23 @@ static inline beet_err_t hide(beet_tree_t   *tree,
 		if (undo) beet_node_unhide(leaf, slot); else {
 			err = BEET_ERR_KEYNOF; goto unlock;
 		}
-	} else { // not hidden
+	} else {
 		if (!undo) beet_node_hide(leaf, slot); else {
 			err = BEET_ERR_KEYNOH; goto unlock;
 		}
 	}
 
+	err = storeNode(tree, leaf);
+	if (err != BEET_OK) goto unlock;
+
 unlock:
-	err = releaseNode(tree, leaf); free(leaf);
-	if (err != BEET_OK) {
+	err2 = releaseNode(tree, leaf); free(leaf);
+	if (err2 != BEET_OK) {
 		unlockAll(tree, &lock, &nodes);
-		return err;
+		return err2;
 	}
 
-	return BEET_OK;
+	return err;
 }
 
 /* ------------------------------------------------------------------------

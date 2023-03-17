@@ -35,6 +35,9 @@ typedef struct {
 	char          leaf; /* is leaf node               */
 } beet_node_t;
 
+#define BEET_NODE_CTRLSZ(x) (x/8+1)
+
+
 /* ------------------------------------------------------------------------
  * Initialise the node from a page
  * ------------------------------------------------------------------------

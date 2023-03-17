@@ -7,6 +7,8 @@
 #include <beet/tree.h>
 #include <common/math.h>
 
+#include <tsalgo/map.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -131,14 +133,51 @@ int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	return 0;
 }
 
-int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
+#define FAKEDATA (char*)0x1
+int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidden, int hi) {
 	beet_err_t    err;
 	beet_node_t *node;
 	int32_t slot;
-	int k;
+	uint64_t k;
 
 	for(int i=0;i<50;i++) {
-		k=rand()%hi;
+		int h, hh=0, nh=1;
+
+		k=rand()%hi; // get a random key
+
+		h=rand()%9;  // random decider for hiding (0: hide)
+
+		// check if k was already hidden
+		if (ts_algo_map_getId(hidden, k) != NULL) {
+			fprintf(stderr, "key %lu found in map\n", k);
+			h=0; hh=1; // key is hidden
+		}
+
+		if (h == 0) {
+			if (hh) nh = rand()%5; // if key was hidden, do we unhide it (0: unhide)
+			
+			if (nh == 0) { // unhide
+				fprintf(stderr, "unhiding %lu\n", k);
+				if (ts_algo_map_removeId(hidden, k) == NULL) {
+					fprintf(stderr, "cannot remove key %lu from map (%d|%d|%d)\n", k, h, hh, nh);
+					return -1;
+				}
+				h=1; hh=0;
+				err = beet_tree_unhide(tree, root, &k);
+
+			} else if (!hh) { // hide if not hidden
+				fprintf(stderr, "hiding %lu\n", k);
+				err = beet_tree_hide(tree, root, &k);
+				if (ts_algo_map_addId(hidden, k, FAKEDATA) != TS_ALGO_OK) {
+					fprintf(stderr, "cannot add key %lu to map\n", k);
+					return -1;
+				}
+			}
+			if (err != BEET_OK) {
+				fprintf(stderr, "cannot (un)hide key %lu: %d\n", k, err);
+				return -1;
+			}
+		}
 
 		err = beet_tree_get(tree, root, &k, &node);
 		if (err != BEET_OK) return -1;
@@ -147,17 +186,25 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 
 		slot = beet_node_search(node, KEYSZ, &k, &compare, NULL);
 		if (slot < 0) {
-			fprintf(stderr, "unexpected result: %d\n", k);
+			fprintf(stderr, "unexpected result: %lu\n", k);
 			return -1;
 		}
 		if (!beet_node_equal(node, slot, KEYSZ, &k, &compare, NULL)) {
-			fprintf(stderr, "key not found: %d in %u (%d - %d)\n", k,
+			fprintf(stderr, "key not found: %lu in %u (%d - %d)\n", k,
 					node->self,
 			                (*(int*)node->keys),
 			                (*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
 			return -1;
 		}
-		// fprintf(stderr, "found: %d in %d\n", k, slot);
+		if (beet_node_hidden(node, slot)) {
+			fprintf(stderr, "key hidden: %lu in %u (%d - %d)\n", k,
+					node->self,
+			                (*(int*)node->keys),
+			                (*(int*)(node->keys+KEYSZ*node->size-KEYSZ)));
+			if (h) return -1;
+		} else {
+			fprintf(stderr, "found: %lu in %d\n", k, slot);
+		}
 		if (memcmp(node->keys+slot*KEYSZ,
 		           node->kids+slot*DATASZ, KEYSZ) != 0) {
 			fprintf(stderr, "key and data differ: %d - %d\n",
@@ -174,7 +221,6 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, int hi) {
 		free(node);
 	}
 	return 0;
-
 }
 
 int main() {
@@ -187,8 +233,14 @@ int main() {
 	beet_tree_t tree;
 	beet_pageid_t root = BEET_PAGE_LEAF;
 	char haveTree = 0;
+	ts_algo_map_t hidden;
 
 	srand(time(NULL));
+
+	if (ts_algo_map_init(&hidden, 0, ts_algo_hash_id, NULL) != TS_ALGO_OK) {
+		fprintf(stderr, "cannot init map\n");
+		return EXIT_FAILURE;
+	}
 
 	if (createFile(path, "roof") != 0) {
 		fprintf(stderr, "cannot create roof\n");
@@ -217,7 +269,7 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -225,7 +277,7 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, 2*NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, 2*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed 2x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -233,7 +285,7 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, 4*NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, 4*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed with 4x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -241,7 +293,7 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, 8*NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, 8*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -249,7 +301,7 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, 16*NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, 16*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -257,7 +309,7 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, 32*NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, 32*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -265,12 +317,13 @@ int main() {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testReadRandom(&tree, &root, 64*NODESZ-1) != 0) {
+	if (testReadRandom(&tree, &root, &hidden, 64*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
 cleanup:
+	ts_algo_map_destroy(&hidden);
 	if (haveTree) beet_tree_destroy(&tree);
 	fclose(roof);
 	if (rc == EXIT_SUCCESS) {
