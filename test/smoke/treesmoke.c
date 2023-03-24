@@ -138,18 +138,35 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidden
 	beet_err_t    err;
 	beet_node_t *node;
 	int32_t slot;
-	uint64_t k;
 
 	for(int i=0;i<50;i++) {
+		uint64_t k;
 		int h, hh=0, nh=1;
 
 		k=rand()%hi; // get a random key
-
 		h=rand()%9;  // random decider for hiding (0: hide)
+
+		/*
+		switch(i) {
+		case 0:
+		case 1:
+		case 2:
+		case 4:
+		case 7:
+			k=i; h=0; break;
+		case 8:
+			k=4; h=0; break;
+		default:
+			h=1;
+			k=0;
+			while (k == 0 || k == 1 || k == 2 || k == 4 || k == 7 || k == 8) 
+				k=rand()%hi; // get a random key
+		}
+		*/
 
 		// check if k was already hidden
 		if (ts_algo_map_getId(hidden, k) != NULL) {
-			fprintf(stderr, "key %lu found in map\n", k);
+			// fprintf(stderr, "key %lu found in map\n", k);
 			h=0; hh=1; // key is hidden
 		}
 
@@ -157,7 +174,6 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidden
 			if (hh) nh = rand()%5; // if key was hidden, do we unhide it (0: unhide)
 			
 			if (nh == 0) { // unhide
-				fprintf(stderr, "unhiding %lu\n", k);
 				if (ts_algo_map_removeId(hidden, k) == NULL) {
 					fprintf(stderr, "cannot remove key %lu from map (%d|%d|%d)\n", k, h, hh, nh);
 					return -1;
@@ -166,7 +182,6 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidden
 				err = beet_tree_unhide(tree, root, &k);
 
 			} else if (!hh) { // hide if not hidden
-				fprintf(stderr, "hiding %lu\n", k);
 				err = beet_tree_hide(tree, root, &k);
 				if (ts_algo_map_addId(hidden, k, FAKEDATA) != TS_ALGO_OK) {
 					fprintf(stderr, "cannot add key %lu to map\n", k);
@@ -319,6 +334,14 @@ int main() {
 	}
 	if (testReadRandom(&tree, &root, &hidden, 64*NODESZ-1) != 0) {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testWriteOneNode(&tree, &root, 32*NODESZ-1, 128*NODESZ-1) != 0) {
+		fprintf(stderr, "testWriteOneNode failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (testReadRandom(&tree, &root, &hidden, 128*NODESZ-1) != 0) {
+		fprintf(stderr, "testReadRandom failed with 16x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 

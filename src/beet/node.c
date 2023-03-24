@@ -87,7 +87,7 @@ void beet_node_init(beet_node_t *node,
 		off += sizeof(int32_t);
 		memcpy(&node->prev, page->data+off, sizeof(uint32_t));
 		off += sizeof(int32_t);
-		node->ctrl = page->data+off; off += CTRLSZ(nodesz);
+		node->ctrl = (uint8_t*)page->data+off; off += CTRLSZ(nodesz);
 
 		/* debug
 		uint16_t x = 0xdead;
@@ -148,6 +148,7 @@ static inline uint8_t hidden(beet_node_t  *node,
 	int     y = slot/8;
 	int     i = slot%8;
 	uint8_t m = 1<<i;
+
 	return (node->ctrl[y] & m);
 }
 
@@ -179,50 +180,36 @@ static inline void unhide(beet_node_t *node,
 }
 
 /* ------------------------------------------------------------------------
- * Helper: map for shifting control block
- * ------------------------------------------------------------------------
- */
-static inline uint8_t mkmap(int x) {
-	int k=1<<(x+1);
-	for(int i = x; i<8; i++) {
-		k |= k<<1;
-	}
-	return k;
-}
-
-/* ------------------------------------------------------------------------
  * Helper: shift control block to match keys after shift
  * ------------------------------------------------------------------------
  */
 static inline void shiftctrl(beet_node_t *node,
                              uint32_t     slot,
                              uint32_t    nsize) {
-	int y = slot/8;
-	int i = slot%8;
+	int y = slot/8; // byte
+	int i = slot%8; // bit
+	uint8_t c = 0;  // carry
+	uint8_t n = 0;  // new value
 
-	uint8_t carry = node->ctrl[y] & 1;
+	// first byte
+	for(int z=0; z<i; z++) {
+		if (node->ctrl[y] & (1<<z)) n |= (1<<z);
+	}
+	for (int z=i; z<7; z++) {
+		if (node->ctrl[y] & (1<<z)) n |= (1<<(z+1));
+	}
+	if (node->ctrl[y] & 128) c = 1;
+	node->ctrl[y] = n;
 
-	carry <<= 7; // the last will be the first of the next byte
-
-	uint8_t m = mkmap(i);           // map keep the first part
-	uint8_t n = node->ctrl[y] >> 1; // shift
-
-	m &= node->ctrl[y];             // apply map to old
-	n |= m;                         // apply modified map to new
-
-	node->ctrl[y] = n;              // set result
-
-	for (int z = y+1; z < nsize; z++) {
-
-		uint8_t o = node->ctrl[z]; // old map
-		uint8_t t = o & 1;         // carry
-
-		n = o >> 1;                // shift
-		n |= carry;                // apply carry
-
-		node->ctrl[z] = n;         // set new map
-
-		carry = t << 7;            // update carry
+	// remaining bytes
+	for(int k=y+1; k<nsize; k++) {
+		n = 0;
+		for (int z=0; z<7; z++) {
+			if (node->ctrl[k] & (1<<z)) n |= (1<<(z+1));
+		}
+		if (c) n |= 1;
+		if (node->ctrl[k] & 128) c = 1; else c = 0;
+		node->ctrl[k] = n;
 	}
 }
 

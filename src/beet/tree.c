@@ -397,49 +397,58 @@ static inline beet_err_t setPrev(beet_tree_t *tree,
 	return BEET_OK;
 }
 
+static inline void bitprint(uint8_t m) {
+	
+	uint8_t k = 1<<7;
+	for(int i=7; i>=0; i--) {
+		if (m & k) fprintf(stderr, "1"); else fprintf(stderr, "0");
+		k>>=1;
+	}
+}
+
 /* ------------------------------------------------------------------------
- * Helper: shift a block of bytes left
+ * Helper: shift a block of bytes downwards
  * ------------------------------------------------------------------------
  */
-static inline void bulkshift(char *buf, int sz, int x) {
+static inline void bulkshift(uint8_t *buf, int sz, int x) {
+	uint8_t n = 0;
 
-	buf[0] <<= x;
+	n = buf[0] >> x;
 	for (int i=1; i<sz; i++) {
-		char m = buf[i];
-		m >>=(8-x);
-		buf[i-1] |= m;
-		buf[i] <<= x;
+		uint8_t m = buf[i];
+		for (int z=0; z<x; z++) {
+			if (m & (1<<z)) {
+				n |= (1<<(8-x+z));
+			}
+		}
+		buf[i-1] = n;
+		n = buf[i] >> x;
 	}
+	buf[sz-1] = n;
 }
 
 /* ------------------------------------------------------------------------
  * Helper: split control block
  * ------------------------------------------------------------------------
  */
-static inline void splitctrl(beet_tree_t *tree,
-                             beet_node_t  *src,
-                             beet_node_t  *trg,
-                             int         split) {
+static inline void splitctrl(uint8_t *src, uint8_t *trg, int s, int split) {
 	int y = split/8;
 	int i = split%8;
-	int s = BEET_NODE_CTRLSZ(tree->lsize);
 
-	// printf("split bit for %d: %d\n", split, i);
+	memcpy(trg, src+y, s-y);
+	bulkshift(trg, s, i);
 
-	memcpy(trg->ctrl, src->ctrl+y, s-y);
-	bulkshift(trg->ctrl, s, (8-i));
-
- 	// set last bits of split byte to 0
-	if (i > 0) {
-		src->ctrl[y] >>= (i-1);
-		src->ctrl[y] <<= (i-1); 
+	// if i is 0 we are on a byte boundary
+	if (i == 0) y--; else {
+ 		// set last bits of split byte to 0
+		src[y] <<= (8-i);
+		src[y] >>= (8-i);
 	}
 
  	// erase higher bytes
 	if (y+1 < s) {
-		memset(src->ctrl+y+1, 0, s-y-1);
+		memset(src+y+1, 0, s-y-1);
 	}
-
 }
 
 /* ------------------------------------------------------------------------
@@ -501,7 +510,7 @@ static inline beet_err_t split(beet_tree_t *tree,
 		}
 
 		// copy control block
-		splitctrl(tree, src, *trg, src->size/2+1);
+		splitctrl(src->ctrl, (*trg)->ctrl, BEET_NODE_CTRLSZ(tree->nsize), src->size/2);
 
 		dsz = tree->dsize;
 		if (dsz > 0) {
