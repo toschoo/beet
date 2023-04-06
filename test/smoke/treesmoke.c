@@ -119,11 +119,20 @@ int initTree(beet_tree_t *tree, char *base,
 	return 0;
 }
 
-int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
+int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidden, int lo, int hi) {
 	beet_err_t    err;
 
 	fprintf(stderr, "writing %06d -- %06d\n", lo, hi);
 	for(int z=hi-1;z>=lo;z--) {
+		uint64_t k = (uint64_t)z;
+
+		if (ts_algo_map_getId(hidden, k) != NULL) {
+			fprintf(stderr, "removing key %d from map\n", z);
+			if (ts_algo_map_removeId(hidden, k) == NULL) {
+				fprintf(stderr, "cannot remove key %d from map\n", z);
+				return -1;
+			}
+		}
 		err = beet_tree_insert(tree, root, &z, &z);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot insert into tree");
@@ -146,27 +155,8 @@ int testReadRandom(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidden
 		k=rand()%hi; // get a random key
 		h=rand()%9;  // random decider for hiding (0: hide)
 
-		/*
-		switch(i) {
-		case 0:
-		case 1:
-		case 2:
-		case 4:
-		case 7:
-			k=i; h=0; break;
-		case 8:
-			k=4; h=0; break;
-		default:
-			h=1;
-			k=0;
-			while (k == 0 || k == 1 || k == 2 || k == 4 || k == 7 || k == 8) 
-				k=rand()%hi; // get a random key
-		}
-		*/
-
 		// check if k was already hidden
 		if (ts_algo_map_getId(hidden, k) != NULL) {
-			// fprintf(stderr, "key %lu found in map\n", k);
 			h=0; hh=1; // key is hidden
 		}
 
@@ -280,7 +270,7 @@ int main() {
 	}
 	haveTree = 1;
 
-	if (testWriteOneNode(&tree, &root, 0, NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 0, NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -288,7 +278,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, NODESZ-1, 2*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, NODESZ-1, 2*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -296,7 +286,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed 2x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, 2*NODESZ-1, 4*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 2*NODESZ-1, 4*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -304,7 +294,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed with 4x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, 4*NODESZ-1, 8*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 4*NODESZ-1, 8*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -312,7 +302,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, 8*NODESZ-1, 16*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 8*NODESZ-1, 16*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -320,7 +310,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, 16*NODESZ-1, 32*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 16*NODESZ-1, 32*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -328,7 +318,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, 32*NODESZ-1, 64*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 32*NODESZ-1, 64*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -336,7 +326,7 @@ int main() {
 		fprintf(stderr, "testReadRandom failed with 8x\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (testWriteOneNode(&tree, &root, 32*NODESZ-1, 128*NODESZ-1) != 0) {
+	if (testWriteOneNode(&tree, &root, &hidden, 32*NODESZ-1, 128*NODESZ-1) != 0) {
 		fprintf(stderr, "testWriteOneNode failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}

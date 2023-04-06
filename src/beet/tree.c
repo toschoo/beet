@@ -261,6 +261,7 @@ static inline beet_err_t storeNode(beet_tree_t *tree,
 	} else {
 		err = beet_rider_store(tree->nolfs, node->page);
 	}
+
 	return err;
 }
 
@@ -395,15 +396,6 @@ static inline beet_err_t setPrev(beet_tree_t *tree,
 	}
 	free(node2);
 	return BEET_OK;
-}
-
-static inline void bitprint(uint8_t m) {
-	
-	uint8_t k = 1<<7;
-	for(int i=7; i>=0; i--) {
-		if (m & k) fprintf(stderr, "1"); else fprintf(stderr, "0");
-		k>>=1;
-	}
 }
 
 /* ------------------------------------------------------------------------
@@ -759,7 +751,7 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	 * do not like this. But we must not
 	 * release the previous lock earlier.
 	 * Otherwise, something may change
-	 * before we actually reach the our target */
+	 * before we actually reach our target */
 	err = getNode(tree, pge, mode, trg);
 	if (err != BEET_OK) {
 		if (mode == READ) {
