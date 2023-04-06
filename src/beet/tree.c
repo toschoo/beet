@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * ========================================================================
  * B+Tree Abstraction
  * ========================================================================
@@ -554,11 +554,14 @@ static beet_err_t insert(beet_tree_t   *tree,
 	void *s;
 	beet_err_t err;
 	char     wrote;
+	uint32_t nsize;
 
-	err = beet_node_add(node, tree->nsize,
+	nsize = node->leaf ? tree->lsize : tree->nsize;
+
+	err = beet_node_add(node, nsize,
 			          tree->ksize,
 			          tree->dsize,
-			          key, data,        
+			          key, data,
 			          tree->cmp,
 	                          tree->rsc,
 			          tree->ins,
