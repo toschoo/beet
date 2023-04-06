@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * 
  * This file is part of the BEET Library.
  *
@@ -102,17 +102,21 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
 /* ------------------------------------------------------------------------
  * Hide a key from the index. The key won't be found any more
  * but is physically still in the tree. This operation is much
- * faster than deleting keys. It is recommended to schedule
+ * faster than deleting keys.
+ * If the key is later inserted again, it will be unhidden.
+ * It is recommended to schedule
  * regular delete operations to completely remove hidden keys.
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_hide(beet_index_t idx, void *key);
 
 /* ------------------------------------------------------------------------
- * Uncover a hidden key in the index, i.e. undo beet_index_hide.
+ * Hide a key from a subtree and, if all data are hidden in that subtree,
+ * also hides the key in the main tree.
+ * TODO: implement!
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_unhide(beet_index_t idx, void *key);
+beet_err_t beet_index_hide2(beet_index_t idx, void *key, void *key2);
 
 /* ------------------------------------------------------------------------
  * Removes a key and all its data from the index

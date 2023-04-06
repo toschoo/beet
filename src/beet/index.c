@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * 
  * This file is part of the BEET Library.
  *
@@ -629,16 +629,6 @@ beet_err_t beet_index_hide(beet_index_t idx, void *key) {
 	IDXNULL();
 	return beet_tree_hide(idx->tree,
 	                     &idx->root, key);
-}
-
-/* ------------------------------------------------------------------------
- * Uncover a hidden key in the index, i.e. undo beet_index_hide.
- * ------------------------------------------------------------------------
- */
-beet_err_t beet_index_unhide(beet_index_t idx, void *key) {
-	IDXNULL();
-	return beet_tree_unhide(idx->tree,
-	                       &idx->root, key);
 }
 
 /* ------------------------------------------------------------------------
