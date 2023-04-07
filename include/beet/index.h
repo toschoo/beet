@@ -104,30 +104,26 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
  * but is physically still in the tree. This operation is much
  * faster than deleting keys.
  * If the key is later inserted again, it will be unhidden.
- * It is recommended to schedule
- * regular delete operations to completely remove hidden keys.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_hide(beet_index_t idx, void *key);
+beet_err_t beet_index_hide(beet_index_t idx, const void *key);
 
 /* ------------------------------------------------------------------------
- * Hide a key from a subtree and, if all data are hidden in that subtree,
- * also hides the key in the main tree.
- * TODO: implement!
+ * Hide a key from a subtree.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_hide2(beet_index_t idx, void *key, void *key2);
+beet_err_t beet_index_hide2(beet_index_t idx, const void *key1,
+                                              const void *key2);
 
 /* ------------------------------------------------------------------------
- * Removes a key and all its data from the index
+ * Removes a key and all its data from the index.
  * TODO: implement!
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
 
 /* ------------------------------------------------------------------------
- * Removes data from a subtree and, if all data were removed
- * from that subtree, also removes the key from the main tree.
+ * Removes single data point from a subtree.
  * TODO: implement!
  * ------------------------------------------------------------------------
  */

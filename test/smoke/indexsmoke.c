@@ -345,7 +345,7 @@ int main() {
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	if (hideAndSeek(idx, &hidden, 64) != 0) {
-		fprintf(stderr, "hideAndSeek 13 failed\n");
+		fprintf(stderr, "hideAndSeek 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
@@ -375,8 +375,8 @@ int main() {
 		fprintf(stderr, "zerocopyRead 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (hideAndSeek(idx, &hidden, 64) != 0) {
-		fprintf(stderr, "hideAndSeek 13 failed\n");
+	if (hideAndSeek(idx, &hidden, 99) != 0) {
+		fprintf(stderr, "hideAndSeek 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
@@ -397,8 +397,8 @@ int main() {
 		fprintf(stderr, "zerocopyRead 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (hideAndSeek(idx, &hidden, 64) != 0) {
-		fprintf(stderr, "hideAndSeek 13 failed\n");
+	if (hideAndSeek(idx, &hidden, 200) != 0) {
+		fprintf(stderr, "hideAndSeek 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
