@@ -77,6 +77,7 @@ beet_err_t beet_index_open(char *base, char   *path, // base and path components
                            beet_open_config_t  *cfg, // opening config
                            beet_index_t       *idx); // pointer to the index object
 ```
+
 As the `create` and `drop` services `open` identifies the index by means of two path components,
 `base` and `path`.
 
@@ -104,7 +105,7 @@ if (handle == NULL) {
 err = beet_index_open(base, path, handle, &cfg, &idx);
 if (err != BEET_OK) {
     errmsg(err, "cannot open index: %s\n", beet_err_desc(err));
-	return EXIT_FAILURE;
+    return EXIT_FAILURE;
 }
 ```
 
@@ -120,6 +121,105 @@ void beet_index_close(beet_index_t idx);
 ```
 
 ### Config
+
+There are two kinds of configurations:
+
+- The `create` config and
+- The `open` config.
+
+The first is used with the `create` service when the index is created.
+It has the following structure:
+
+```C
+typedef struct {
+    uint32_t indexType;     // index type
+    uint32_t leafPageSize;  // page size of leaf nodes
+    uint32_t intPageSize;   // page size of internal nodes
+    uint32_t leafNodeSize;  // number of keys in leaf nodes
+    uint32_t intNodeSize;   // number of keys in internal nodes
+    uint32_t keySize;       // size of one key
+    uint32_t dataSize;      // data size
+    int32_t  leafCacheSize; // cache size for leaf nodes
+    int32_t  intCacheSize;  // cache size for internal nodes
+    char    *subPath;       // path to the embedded index
+    char    *compare;       // name of compare function
+    char    *rscinit;       // name of rsc init function
+    char    *rscdest;       // name of rsc destroyer function
+} beet_config_t;
+```
+
+Index types are:
+
+- BEET_INDEX_NULL : an index without data (key-only)
+- BEET_INDEX_PLAIN: a normal index with key and data
+- BEET_INDEX_HOST : an index with an embedded index.
+
+Note that an embedded index can only be of type `NULL` or `PLAIN`.
+In other words, the embedding is limited to two levels. One cannot
+embed an index into an embedded index.
+
+The next six attributes describe the sizing of nodes and pages.
+Page is the storage unit of node. For each sizing level
+(page and node) there are two values: for leaf nodes (which contain the data)
+and internal nodes (which contain pointers to other nodes as data).
+
+The attributes `leafNodeSize` and `intNodeSize` indicate
+the number of key/data pairs stored in one node of the corresponding type.
+
+The attributes `leafPageSize` and `intPageSize` indicate the size
+of pages that store leaf nodes and internal node respectively in bytes.
+
+The size of a leaf page must be at least:
+
+`keySize * leafNodeSize + dataSize * leafNodeSize + 12 + leafNodeSize/8 + 1`.
+
+The size of an internal page must be at least:
+
+`keySize * intNodeSize + 4 * intNodeSize + 4 + 4`.
+
+Currently these sizes are not computed internally, but must be given
+in the configuration and *must* be correct. In a future version,
+the page size settings will be ignored and calculated internally.
+
+The attributes `keySize` and `dataSize` indicate the size of one key
+and one data record respectively.
+
+The Beet library uses caches to retrieve nodes from disks.
+One cache is exclusively used for leaf nodes and one is used only for internal nodes.
+The attributes `leafCacheSize` and `intCacheSize` indicate the size of these caches
+in terms of numbers of nodes that can be stored.
+There are two special values:
+
+- BEET_CACHE_UNLIMITED (0) : the cache grows without upper bound
+- BEET_CACHE_DEFAULT   (-1): an internal default is used.
+
+The attribute `subPath` contains the path to the embedded index.
+If the index is not a host, this attribute must be `NULL`.
+
+The `compare` attribute contains the name of the compare function
+for the keys of this index. The compare function may be defined
+anywhere in the code of the calling program or in a special library
+which is than passed to the `open` service as `handle`.
+The `compare` function must have the following type:
+
+```C
+typedef char (*beet_compare_t)(const void*, const void*, void*);
+```
+
+The `const void*` parameters are the left and the right value to be compared.
+The expected behaviour is:
+
+- If they are equal, the function shall return `BEET_CMP_EQUAL` (0).
+- If left < right, the function shall return `BEET_CMP_LESS` (-1).
+- If left > right, the function shall return `BEET_CMP_GREATER` (1).
+
+The third parameter of the function is a pointer to an object (`rsc`)
+only known to user code which may be used for comparison.
+This object is stored internally and passed on the comparison function.
+The last two attributes of the config structure (`rscinit` and `rscdest`) are names of functions
+(defined in the code of the calling program or the already mentioned special library)
+that initialise this object or destroy it at the end.
+If these attributes are `NULL`, no initialisation or destruction is performed.
 
 ### Inserting and Searching
 
