@@ -104,7 +104,7 @@ if (handle == NULL) {
 
 err = beet_index_open(base, path, handle, &cfg, &idx);
 if (err != BEET_OK) {
-    errmsg(err, "cannot open index: %s\n", beet_err_desc(err));
+    errmsg(err, "cannot open index: %s\n", beet_errdesc(err));
     return EXIT_FAILURE;
 }
 ```
@@ -199,7 +199,7 @@ If the index is not a host, this attribute must be `NULL`.
 The `compare` attribute contains the name of the compare function
 for the keys of this index. The compare function may be defined
 anywhere in the code of the calling program or in a special library
-which is than passed to the `open` service as `handle`.
+which is then passed to the `open` service as `handle`.
 The `compare` function must have the following type:
 
 ```C
@@ -216,6 +216,18 @@ The expected behaviour is:
 The third parameter of the function is a pointer to an object (`rsc`)
 only known to user code which may be used for comparison.
 This object is stored internally and passed on the comparison function.
+It can also be retrieved explicitly by means of the `getResource` service:
+
+```C
+void *beet_index_getResource(beet_index_t idx);
+```
+
+The compare function can also be retrieved explicitly using the `getCompare` service:
+
+```C
+beet_compare_t beet_index_getCompare(beet_index_t idx);
+```
+
 The last two attributes of the config structure (`rscinit` and `rscdest`) are names of functions
 (defined in the code of the calling program or the already mentioned special library)
 that initialise this object or destroy it at the end.
@@ -223,7 +235,291 @@ If these attributes are `NULL`, no initialisation or destruction is performed.
 
 ### Inserting and Searching
 
-### Iterators
+Key/data pairs are inserted with the `insert` service:
+
+```C
+beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data);
+```
+
+The function receives the index into which to insert the pair, a pointer to the key
+and a pointer to the data.
+If the key does not exist, it is inserted.
+If the key already exists, the function returns the error `BEET_ERR_DBLKEY`.
+An alternative to `insert` is the `upsert` service:
+
+The `upsert` service works exactly like `insert`, with the exception that it does not return an error
+if the key already exist but overwrites the data:
+
+```C
+beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
+```
+
+The following code snippet would insert data into an index with keys of type `uint64_t` and data `double`:
+
+```C
+uint64_t k = 100;
+double   d = 3.14159;
+
+err = beet_index_insert(idx, &k, &d);
+if (err != BEET_OK) {
+    errmsg(err, "cannot insert into index: %s\n", beet_errdesc(err));
+    return EXIT_FAILURE;
+}
+```
+
+When inserting into an index with an embedded tree, the data is a key value pair itself
+and must be of type `beet_pair_t`:
+
+```C
+typedef struct {
+    void *key;
+    void *data;
+} beet_pair_t;
+
+```
+
+Here is an example:
+
+```C
+uint64_t k = 12;
+
+for (uint64_t z=1; z<k; z++) {
+    uint64_t r = k%z;
+    if (r != 0) {
+        beet_pair_t p;
+        p.key  = &z;
+        p.data = &r;
+        err = beet_index_insert(idx, &k, &p);
+        if (err != BEET_OK) {
+            errmsg(err, "cannot insert into index: %s\n", beet_errdesc(err));
+            return EXIT_FAILURE;
+        }
+    }
+}
+```
+
+We can check that a certain key was inserted into the tree by means of the `exist` service:
+
+```C
+beet_err_t beet_index_doesExist(beet_index_t idx, const void *key);
+```
+
+If the function return `BEET_OK`, the key exists.
+If it does not exist, the function returns `BEET_KEY_NOF`.
+
+```C
+beet_err_t beet_index_doesExist2(beet_index_t idx, const void *key1, const void *key2);
+```
+
+To verify that a key exists in an embedded index we can use:
+
+The simplest way to retrieve data from an index is the `copy` service:
+
+```C
+beet_err_t beet_index_copy(beet_index_t idx, const void *key, void *data);
+```
+
+If the key is found, the function copies the corresponding record into the location
+referenced by data. If the key is not found, the function returns the error `BEET_ERR_KEYNOF`:
+
+```C
+uint64_t k = 100;
+double d;
+
+beet_err_t err = beet_index_copy(idx, &k, &d);
+if (err == BEET_ERR_KEYNOF) {
+    fprintf(stderr, "key %lu not found\n", k);
+    return 0;
+} else if (err != BEET_OK) {
+    fprintf(stderr, "cannot retrieve data for key %lu: %s\n", k, beet_errdesc(err));
+    return -1;
+}
+fprintf(stdout, "%lu: %f\n", k, d);
+```
+
+Unfortunately, `copy` cannot be used to retrieve data from an embedded index.
+Also, copying the data is not always the best solution, for example in cases where
+many retrievals are performed and the data is large.
+For such cases, the `get` service is available:
+
+```C
+beet_err_t beet_index_get(beet_index_t  idx,
+                          beet_state_t  state,
+                          uint16_t      flags,
+                          const void   *key,
+                          void        **data);
+```
+
+The second parameter `state` keeps track of the internal state, in particular
+`get` needs to maintain the node that contains the key and its data in memory
+and locks it from write access during this time. Therefore, the state should be released
+as soon a possible.
+
+The parameter `flags` should always be set to 0. SHOULD BE REMOVED.
+
+Finally, the pointer `data` is set to the memory address of the data under the key.
+Overwriting the data at this position directly is **dangerous**:
+it may lead to race conditions with other readers not to mention bugs
+that may corrupt the index.
+
+Retrieving data from an embedded index is done with the `get2` service:
+
+```C
+beet_err_t beet_index_get2(beet_index_t  idx,
+                           beet_state_t  state,
+                           uint16_t      flags,
+                           const void   *key1,
+                           const void   *key2,
+                           void        **data);
+```
+
+The second `key` parameter is the key of the embedded index.
+Otherwise, the function behaves exactly like `get`.
+
+Here is a usage example:
+
+```C
+beet_state_t state;
+err = beet_state_alloc(idx, &state); // allocate the state
+if (err != BEET_OK) {
+    fprintf(stderr, "cannot allocate state: %s\n", beet_errdesc(err));
+    return -1;
+}
+uint64_t k = 12;
+
+for(uint64_t z=1; z <= k; z++) {
+    uint64_t *r;
+    err = beet_index_get2(idx, state, 0, &k, &z, &r);
+    if (err != BEET_OK) {
+       fprintf(stderr, "cannot retrieve data of %lu.%lu: %s\n", k, z, beet_errdesc(err));
+       beet_state_release(state); // release all locks
+       beet_state_destroy(state); // free memory
+       return -1;
+    }
+    fprintf(stdout, "The remainder of %lu and %lu is %lu\n", k, z, *r);
+    beet_state_release(state); // release all locks
+    beet_state_reinit(state);  // clean state
+}
+beet_state_destroy(state); // free memory
+```
+
+An additional way to retrieve data is provided by iterators.
+Iterators are especially useful with range scans
+where we iterate over a sequence of keys.
+We start by allocating an iterator:
+
+```C
+beet_err_t beet_iter_alloc(beet_index_t idx,
+                           beet_iter_t *iter);
+```
+
+We then perform a range scan:
+
+```C
+beet_err_t beet_index_range(beet_index_t  idx,
+                            beet_range_t *range,
+                            beet_dir_t    dir,
+                            beet_iter_t   iter);
+```
+
+The second parameter, `range`, defines the key range in which we search.
+The type is:
+
+```C
+typedef struct {
+    void *fromkey;
+    void *tokey;
+} beet_range_t;
+```
+
+The third parameter indicates the direction of the search, which is either
+
+- `BEET_DIR_ASC` (for ascending) or
+- `BEET_DIR_DESC` (for descending).
+
+The last parameter is the already allocated iterator.
+
+When the function terminated successfully, we can move the iterator
+through the key range:
+
+```C
+beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data);
+```
+
+The function sets the iterator to the next key
+(which is the first key in the range on first call)
+and set the pointers key and data to the data in the node.
+As with the `get` services, the node remains in memory and is locked
+from concurrent write access until we move to the next node in the range.
+
+If we have already reached the last node in the range,
+the function return `BEET_ERR_EOF`.
+
+When iterating over a key range of a host index,
+we can enter the embedded index by means of the `enter` service:
+
+```C
+beet_err_t beet_iter_enter(beet_iter_t iter);
+```
+
+When we now `move` we pass to the next key/data pair in the embedded index.
+
+The `leave` service switches back to the range of the host index:
+
+```C
+beet_err_t beet_iter_leave(beet_iter_t iter);
+```
+
+Here is a complete usage example:
+
+```C
+beet_err_t err;
+uint64_t *k, *z, *r, *d;
+uint64_t from, to;
+beet_range_t range;
+beet_iter_t iter;
+
+from = 1;
+to = 12;
+range.fromkey = &from;
+range.tokey = &to;
+
+err = beet_iter_alloc(idx, &iter);
+if (err != BEET_OK) {
+    fprintf(stderr, "cannot create iter: %s\n", beet_errdesc(err));
+    return -1;
+}
+err = beet_index_range(idx, &range, BEET_DIR_ASC, iter);
+if (err != BEET_OK) {
+    fprintf(stderr, "cannot initiate iter: %s\n", beet_errdesc(err));
+    beet_iter_destroy(iter);
+    return -1;
+}
+while((err = beet_iter_move(iter, (void**)&k,
+                                  (void**)&d)) == BEET_OK)
+{
+    err = beet_iter_enter(iter);
+    if (err != BEET_OK) {
+        fprintf(stderr, "cannot enter key %lu: %s\n", k, beet_errdesc(err));
+        beet_iter_destroy(iter);
+        return -1;
+    }
+
+    while((err = beet_iter_move(iter, (void**)&z,
+                                      (void**)&r)) == BEET_OK)
+    {
+        fprintf(stdout, "The remainder of %lu and %lu is %lu\n", *k, *z, *r);
+    }
+
+    err = beet_iter_leave(iter);
+    if (err != BEET_OK) {
+        fprintf(stderr, "cannot leave key %lu: %s\n", k, beet_errdesc(err));
+        beet_iter_destroy(iter);
+        return -1;
+    }
+}
+beet_iter_destroy(iter); // free memory
+```
 
 ### Hiding and Deleting
 
