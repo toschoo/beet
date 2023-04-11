@@ -593,7 +593,7 @@ beet_err_t beet_index_purge(beet_index_t idx, int runtime);
 
 The second parameter of `purge` is the maximal running time
 of the service in seconds. If the function has run for more
-than the specified number seconds, it will terminate.
+than the specified number of seconds, it will terminate.
 
 ## Testing
 
