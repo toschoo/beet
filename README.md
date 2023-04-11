@@ -127,6 +127,8 @@ There are two kinds of configurations:
 - The `create` config and
 - The `open` config.
 
+#### The Create Config
+
 The first is used with the `create` service when the index is created.
 It has the following structure:
 
@@ -188,10 +190,11 @@ The Beet library uses caches to retrieve nodes from disks.
 One cache is exclusively used for leaf nodes and one is used only for internal nodes.
 The attributes `leafCacheSize` and `intCacheSize` indicate the size of these caches
 in terms of numbers of nodes that can be stored.
-There are two special values:
+There are some special values:
 
-- BEET_CACHE_UNLIMITED (0) : the cache grows without upper bound
-- BEET_CACHE_DEFAULT   (-1): an internal default is used.
+- BEET_CACHE_UNLIMITED: the cache grows without upper bound
+- BEET_CACHE_DEFAULT  : an internal default is used
+- BEET_CACHE_IGNORE   : has meaning in the context with the `open` config (see below).
 
 The attribute `subPath` contains the path to the embedded index.
 If the index is not a host, this attribute must be `NULL`.
@@ -203,7 +206,7 @@ which is then passed to the `open` service as `handle`.
 The `compare` function must have the following type:
 
 ```C
-typedef char (*beet_compare_t)(const void*, const void*, void*);
+typedef char (\*beet_compare_t)(const void*, const void*, void*);
 ```
 
 The `const void*` parameters are the left and the right value to be compared.
@@ -219,7 +222,7 @@ This object is stored internally and passed on the comparison function.
 It can also be retrieved explicitly by means of the `getResource` service:
 
 ```C
-void *beet_index_getResource(beet_index_t idx);
+void \*beet_index_getResource(beet_index_t idx);
 ```
 
 The compare function can also be retrieved explicitly using the `getCompare` service:
@@ -232,6 +235,38 @@ The last two attributes of the config structure (`rscinit` and `rscdest`) are na
 (defined in the code of the calling program or the already mentioned special library)
 that initialise this object or destroy it at the end.
 If these attributes are `NULL`, no initialisation or destruction is performed.
+
+#### The Open Config
+
+The purpose of the `open` config is to overwrite some of the settings chosen at creation time
+for a specific session, be it for debugging or be it for finding optimal settings interactively.
+But it also sets one value that is not considered in the `create` config,
+namely the user defined resource.
+The `open` config has the following format:
+
+```C
+typedef struct {
+	int32_t  leafCacheSize; // cache size for leaf nodes
+	int32_t   intCacheSize; // cache size for internal nodes
+	beet_compare_t compare; // pointer to compare function
+	beet_rscinit_t rscinit; // pointer to rsc init function
+	beet_rscinit_t rscdest; // pointer to rsc destroyer function
+	void              *rsc; // passed in to rscinit
+} beet_open_config_t;
+```
+
+The first two values are the cache size settings we already saw in the `create` config.
+If they are set to any value different from `BEET_CACHE_IGNORE`,
+the values in the `create` config are overwritten.
+This is in particular useful for optimising and fine tuning index performance.
+
+The `compare` attribute is a pointer to a `compare` function. If the value is different from NULL it is used instead of the symbol stored in the `create` config.
+This is useful for debugging.
+
+The same is true for the next two attributes, `rcsinit` and `rcsdest`
+which overwrite the symbols of the same name in the `create` config.
+
+Finally, \*rsc is an arbitrary object that can be passed in to be used with `compare`.
 
 ### Inserting and Searching
 
@@ -305,7 +340,7 @@ beet_err_t beet_index_doesExist(beet_index_t idx, const void *key);
 ```
 
 If the function return `BEET_OK`, the key exists.
-If it does not exist, the function returns `BEET_KEY_NOF`.
+If it does not exist, the function returns `BEET_ERR_KEYNOF`.
 
 ```C
 beet_err_t beet_index_doesExist2(beet_index_t idx, const void *key1, const void *key2);
@@ -521,7 +556,44 @@ while((err = beet_iter_move(iter, (void**)&k,
 beet_iter_destroy(iter); // free memory
 ```
 
-### Hiding and Deleting
+### Deleting and Hiding
+
+The `delete` service deletes a key and its data from the index:
+
+```C
+beet_err_t beet_index_delete(beet_index_t idx, const void *key);
+```
+
+To delete a key and its data from an embedded index the following service can be used:
+
+```C
+beet_err_t beet_index_delete2(beet_index_t idx, const void *key1, const void *key2);
+```
+
+Since deleting is a costly operation, there is an alternative approach.
+Keys can be hidden, so that retrieval operations won't find them.
+To hide a key in the index `hide` service is used:
+
+```C
+beet_err_t beet_index_hide(beet_index_t idx, const void *key);
+```
+
+To hide a key in an embedded index, `hide2` is used:
+
+```C
+beet_err_t beet_index_hide2(beet_index_t idx, const void *key);
+```
+
+Hidden keys can later be removed by an incremental background job
+that would call delete on every hidden key:
+
+```C
+beet_err_t beet_index_purge(beet_index_t idx, int runtime);
+```
+
+The second parameter of `purge` is the maximal running time
+of the service in seconds. If the function has run for more
+than the specified number seconds, it will terminate.
 
 ## Testing
 
@@ -565,3 +637,5 @@ The library comes with a GNU Makefile.
   adds `./lib` to the `LD_LIBRARY_PATH`
 
 Beet depends on C99 and the [tsalgo](https://github.com/toschoo/tsalgo) library.
+
+## TODOs and Bugs

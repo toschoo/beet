@@ -116,20 +116,26 @@ beet_err_t beet_index_hide2(beet_index_t idx, const void *key1,
                                               const void *key2);
 
 /* ------------------------------------------------------------------------
+ * Remove hidden keys.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_purge(beet_index_t idx, int runtime);
+
+/* ------------------------------------------------------------------------
  * Removes a key and all its data from the index.
  * TODO: implement!
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
+beet_err_t beet_index_delete(beet_index_t idx, const void *key);
 
 /* ------------------------------------------------------------------------
  * Removes single data point from a subtree.
  * TODO: implement!
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_delete(beet_index_t  idx,
-                             void        *key1,
-                             void        *key2);
+beet_err_t beet_index_delete2(beet_index_t  idx,
+                              const void  *key1,
+                              const void  *key2);
 
 /* ------------------------------------------------------------------------
  * Compute the height of the tree
