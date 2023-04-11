@@ -206,7 +206,7 @@ which is then passed to the `open` service as `handle`.
 The `compare` function must have the following type:
 
 ```C
-typedef char (\*beet_compare_t)(const void*, const void*, void*);
+typedef char (*beet_compare_t)(const void*, const void*, void*);
 ```
 
 The `const void*` parameters are the left and the right value to be compared.
@@ -222,7 +222,7 @@ This object is stored internally and passed on the comparison function.
 It can also be retrieved explicitly by means of the `getResource` service:
 
 ```C
-void \*beet_index_getResource(beet_index_t idx);
+void *beet_index_getResource(beet_index_t idx);
 ```
 
 The compare function can also be retrieved explicitly using the `getCompare` service:
