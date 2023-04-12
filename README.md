@@ -34,7 +34,7 @@ Indices are created by means of the create service:
 ```
 
 The function receives a base path and a path relative to the base.
-The intention is the ease the management of indices that belong together, e.g. a host and an embedded index.
+The intention is to ease the management of indices that belong together, e.g. a host and an embedded index.
 They would share the same base path but use different subdirectories at that location.
 
 The `standalone` flag indicates whether or not the index shall be used as an index embedded into another.
@@ -189,7 +189,7 @@ and one data record respectively.
 The Beet library uses caches to retrieve nodes from disks.
 One cache is exclusively used for leaf nodes and one is used only for internal nodes.
 The attributes `leafCacheSize` and `intCacheSize` indicate the size of these caches
-in terms of numbers of nodes.
+in terms of the number of nodes to be kept in memory.
 There are some special values:
 
 - BEET_CACHE_UNLIMITED: the cache grows without upper bound
@@ -199,8 +199,8 @@ There are some special values:
 The attribute `subPath` contains the path to the embedded index.
 If the index is not a host, this attribute must be `NULL`.
 
-The `compare` attribute contains the name of the compare function
-for the keys of this index. The compare function may be defined
+The `compare` attribute contains the name of the `compare` function
+for the keys of this index. The `compare` function may be defined
 anywhere in the code of the calling program or in a special library
 which is then passed to the `open` service as `handle`.
 The `compare` function must have the following type:
@@ -225,7 +225,7 @@ It can be retrieved explicitly by means of the `getResource` service:
 void *beet_index_getResource(beet_index_t idx);
 ```
 
-The compare function can also be retrieved explicitly using the `getCompare` service:
+The `compare` function can also be retrieved explicitly using the `getCompare` service:
 
 ```C
 beet_compare_t beet_index_getCompare(beet_index_t idx);
@@ -277,7 +277,7 @@ void beet_open_config_ignore(beet_open_config_t *cfg);
 
 ### Inserting
 
-Key/data pairs are inserted with the `insert` service:
+Key/value pairs are inserted with the `insert` service:
 
 ```C
 beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data);
@@ -294,7 +294,7 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
 ```
 
 The `upsert` service works exactly like `insert`, with the exception that it does not return an error
-if the key exist but overwrites the data.
+if the key exists. Instead it silently overwrites the data.
 
 The following code snippet would insert data into an index with keys of type `uint64_t` and data `double`:
 
@@ -432,7 +432,7 @@ beet_state_t state;
 err = beet_state_alloc(idx, &state); // allocate the state
 if (err != BEET_OK) {
     fprintf(stderr, "cannot allocate state: %s\n", beet_errdesc(err));
-    return -1;
+    return EXIT_FAILURE;
 }
 uint64_t k = 12;
 
@@ -570,6 +570,11 @@ while((err = beet_iter_move(iter, (void**)&k,
     {
         fprintf(stdout, "The remainder of %lu and %lu is %lu\n", *k, *z, *r);
     }
+    if (err != BEET_ERR_EOF) {
+        fprintf(stderr, "cannot move through key %lu: %s\n", k, beet_errdesc(err));
+        beet_iter_destroy(iter);
+        return EXIT_FAILURE;
+    }
 
     err = beet_iter_leave(iter);
     if (err != BEET_OK) {
@@ -579,6 +584,10 @@ while((err = beet_iter_move(iter, (void**)&k,
     }
 }
 beet_iter_destroy(iter); // free memory
+if (err != BEET_ERR_EOF) {
+    fprintf(stderr, "cannot move through range: %s\n", beet_errdesc(err));
+    return EXIT_FAILURE;
+}
 ```
 
 ### Deleting and Hiding
