@@ -175,46 +175,63 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data) {
 	if (iter->level == 1) {
 		return beet_iter_move(iter->sub, key, data);
 	}
-	if (iter->node != NULL && (
-	   (iter->dir == BEET_DIR_ASC  && iter->pos == iter->node->size) ||
-	   (iter->dir == BEET_DIR_DESC && iter->pos == -1))) {
-		if (iter->dir == BEET_DIR_ASC) {
-			err = beet_tree_next(iter->tree, iter->node, &tmp);
-		} else {
-			err = beet_tree_prev(iter->tree, iter->node, &tmp);
-		}
-		if (err != BEET_OK) return err;
-
-		iter->pos = iter->dir == BEET_DIR_ASC?0:tmp->size-1;
-
-		err = beet_tree_release(iter->tree, iter->node);
-		free(iter->node); iter->node = tmp;
-
-	}
-	if (iter->node == NULL) {
-		if (iter->pos != -1) return BEET_ERR_EOF;
-		if (iter->from != NULL) {
-			err = beet_tree_get(iter->tree, iter->root,
-			                                iter->from,
-			                               &iter->node);
-		} else if (iter->dir == BEET_DIR_ASC) {
-			err = beet_tree_left(iter->tree, iter->root,
-			                                &iter->node);
-		} else {
-			err = beet_tree_right(iter->tree, iter->root,
-			                                 &iter->node);
-		}
-		if (err != BEET_OK) return err;
-
-		if (iter->node->size == 0) return BEET_ERR_EOF;
-
-		if (iter->from != NULL) {
-			err = getfrom(iter);
+	for(;;) {
+		if (iter->node != NULL && (
+		   (iter->dir == BEET_DIR_ASC  && iter->pos == iter->node->size) ||
+		   (iter->dir == BEET_DIR_DESC && iter->pos == -1))) {
+			if (iter->dir == BEET_DIR_ASC) {
+				err = beet_tree_next(iter->tree, iter->node, &tmp);
+			} else {
+				err = beet_tree_prev(iter->tree, iter->node, &tmp);
+			}
 			if (err != BEET_OK) return err;
-		} else {
-			iter->pos = iter->dir == BEET_DIR_ASC?0:
-			            iter->node->size-1;
+
+			iter->pos = iter->dir == BEET_DIR_ASC?0:tmp->size-1;
+
+			err = beet_tree_release(iter->tree, iter->node);
+			free(iter->node); iter->node = tmp;
 		}
+		if (iter->node == NULL) {
+			if (iter->pos != -1) return BEET_ERR_EOF;
+			if (iter->from != NULL) {
+				err = beet_tree_get(iter->tree, iter->root,
+				                                iter->from,
+				                               &iter->node);
+			} else if (iter->dir == BEET_DIR_ASC) {
+				err = beet_tree_left(iter->tree, iter->root,
+				                                &iter->node);
+			} else {
+				err = beet_tree_right(iter->tree, iter->root,
+				                                 &iter->node);
+			}
+			if (err != BEET_OK) return err;
+
+			if (iter->node->size == 0) return BEET_ERR_EOF;
+
+			if (iter->from != NULL) {
+				err = getfrom(iter);
+				if (err != BEET_OK) return err;
+			} else {
+				iter->pos = iter->dir == BEET_DIR_ASC?0:
+				            iter->node->size-1;
+			}
+		}
+
+		int repeat = 0;
+		while (beet_node_hidden(iter->node, iter->pos)) {
+			if (iter->dir == BEET_DIR_ASC) {
+				iter->pos++;
+				if (iter->pos == iter->node->size) {
+					repeat=1; break;
+				}
+			} else {
+				iter->pos--;
+				if (iter->pos < 0) {
+					repeat=1; break;
+				}
+			}
+		}
+		if (repeat == 0) break;
 	}
 
 	*key = iter->node->keys+iter->pos*iter->tree->ksize;

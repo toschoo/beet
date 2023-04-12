@@ -38,9 +38,9 @@ typedef struct {
 } beet_version_t;
 
 #define BEET_VERSION_FIRST 0
-#define BEET_VERSION_MAJOR 1
-#define BEET_VERSION_MINOR 1
-#define BEET_VERSION_HOTFX 0
+#define BEET_VERSION_MAJOR 2
+#define BEET_VERSION_MINOR 0
+#define BEET_VERSION_HOTFX 2
 
 /* -----------------------------------------------------------------------
  * Get current version
