@@ -5,6 +5,8 @@
 #include <beet/config.h>
 #include <beet/index.h>
 
+#include <tsalgo/map.h>
+
 #include <common/math.h>
 
 #include <stdint.h>
@@ -339,10 +341,81 @@ int invalidEnter(beet_index_t idx, int hi) {
 	return 0;
 }
 
+#define FAKEDATA (char*)0x1
+int hideSome(beet_index_t idx, ts_algo_map_t *hidden, int lo, int hi) {
+	for(int i=lo; i<hi; i++) {
+		int x = rand()%10;
+		if (x == 0) {
+			int k;
+			uint64_t h;
+			do {
+				k = rand()%hi;
+				if (k < lo) k += lo;
+				h = (uint64_t)k;
+			} while (ts_algo_map_getId(hidden, h) != NULL);
+
+			// fprintf(stderr, "hiding key %d\n", k);
+			beet_err_t err = beet_index_hide(idx, &k);
+			if (err != BEET_OK) {
+				errmsg(err, "cannot hide\n");
+				return -1;
+			}
+			if (ts_algo_map_addId(hidden, h, FAKEDATA) != TS_ALGO_OK) {
+				fprintf(stderr, "cannot add %lu to map\n", h);
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
+int rangeWithHidden(beet_index_t idx, beet_dir_t dir, ts_algo_map_t *hidden, int lo, int hi) {
+	int count = 0;
+	beet_iter_t iter;
+	beet_range_t range;
+	int *k, *d;
+
+	range.fromkey = NULL;
+	range.tokey = NULL;
+
+	beet_err_t err = beet_iter_alloc(idx, &iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot create iter");
+		return -1;
+	}
+	err = beet_index_range(idx, &range, dir, iter);
+	if (err != BEET_OK) {
+		errmsg(err, "cannot init iter");
+		beet_iter_destroy(iter);
+		return -1;
+	}
+	while((err = beet_iter_move(iter, (void**)&k, (void**)&d)) == BEET_OK) {
+		uint64_t h = (uint64_t)*k;
+		if (ts_algo_map_getId(hidden, h) != NULL) {
+			fprintf(stderr, "found hidden key %lu\n", h);
+			beet_iter_destroy(iter);
+			return -1;
+		}
+		count++;
+	}
+	beet_iter_destroy(iter);
+	if (err != BEET_ERR_EOF) {
+		errmsg(err, "cannot move\n");
+		return -1;
+	}
+	if (hi-lo-(int)hidden->count != count) {
+		fprintf(stderr, "expecting %d - %d - %d = %d, have %d\n",
+		                hi, lo, (int)hidden->count, hi-lo-(int)hidden->count, count);
+		return -1;
+	}
+	return 0;
+}
+
 int main() {
 	int rc = EXIT_SUCCESS;
 	beet_index_t idx;
 	int haveIndex = 0;
+	int haveMap   = 0;
 	void *handle=NULL;
 
 	srand(time(NULL) ^ (uint64_t)&printf);
@@ -457,8 +530,31 @@ int main() {
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
+	/* test with hidden keys */
+	ts_algo_map_t hidden;
+
+	if (ts_algo_map_init(&hidden, 0, ts_algo_hash_id, NULL) != TS_ALGO_OK) {
+		fprintf(stderr, "cannot initiate map\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	haveMap = 1;
+
+	if (hideSome(idx, &hidden, 1, 300) != 0) {
+		fprintf(stderr, "hideSome 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeWithHidden(idx, BEET_DIR_ASC, &hidden, 1, 300) != 0) {
+		fprintf(stderr, "rangeWithHidden ASC 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (rangeWithHidden(idx, BEET_DIR_DESC, &hidden, 1, 300) != 0) {
+		fprintf(stderr, "rangeWithHidden DESC 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+
 cleanup:
 	if (haveIndex) beet_index_close(idx);
+	if (haveMap) ts_algo_map_destroy(&hidden);
 	if (handle != NULL) beet_lib_close(handle);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");
