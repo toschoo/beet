@@ -1,7 +1,7 @@
 # B+Tree Library "Beet"
 
 Beet is a B+Tree implementation that can be used to build
-disk-backed key-data storage structures like large hash maps or indices for databases.
+disk-backed key-value storage structures like large hash maps or indices for databases.
 It provides an API with services to
 
 - create, open, close and destroy indices
@@ -15,9 +15,9 @@ Any data type with an upper-bound size can be used as keys and data.
 One key may store one data record or a list of records. For the second case,
 the B+Tree data structure is repeated on data level, i.e. the data
 is the root into another B+Tree. This ensures that the list is kept
-ordered and allows for quick searches and range iterations on data level.
+ordered and allows for quick searches and range scans on data level.
 The feature can be used, for example, to implement secondary indices
-for databases where keys store references to data file offsets where
+for databases where keys store data file offsets where
 the data corresponding to the key can be found.
 
 ## API
@@ -33,7 +33,7 @@ Indices are created by means of the create service:
                                  beet_config_t *cfg);  // pointer to the config (see below)
 ```
 
-The function receives a base path and a path relative to this path.
+The function receives a base path and a path relative to the base.
 The intention is the ease the management of indices that belong together, e.g. a host and an embedded index.
 They would share the same base path but use different subdirectories at that location.
 
@@ -104,7 +104,7 @@ if (handle == NULL) {
 
 err = beet_index_open(base, path, handle, &cfg, &idx);
 if (err != BEET_OK) {
-    errmsg(err, "cannot open index: %s\n", beet_errdesc(err));
+    fprintf(stderr, "cannot open index: %s\n", beet_errdesc(err));
     return EXIT_FAILURE;
 }
 ```
@@ -166,10 +166,10 @@ Page is the storage unit of node. For each sizing level
 and internal nodes (which contain pointers to other nodes as data).
 
 The attributes `leafNodeSize` and `intNodeSize` indicate
-the number of key/data pairs stored in one node of the corresponding type.
+the number of key/value pairs stored in one node of the corresponding type.
 
 The attributes `leafPageSize` and `intPageSize` indicate the size
-of pages that store leaf nodes and internal node respectively in bytes.
+of pages that store leaf nodes and internal nodes respectively in bytes.
 
 The size of a leaf page must be at least:
 
@@ -189,7 +189,7 @@ and one data record respectively.
 The Beet library uses caches to retrieve nodes from disks.
 One cache is exclusively used for leaf nodes and one is used only for internal nodes.
 The attributes `leafCacheSize` and `intCacheSize` indicate the size of these caches
-in terms of numbers of nodes that can be stored.
+in terms of numbers of nodes.
 There are some special values:
 
 - BEET_CACHE_UNLIMITED: the cache grows without upper bound
@@ -218,8 +218,8 @@ The expected behaviour is:
 
 The third parameter of the function is a pointer to an object (`rsc`)
 only known to user code which may be used for comparison.
-This object is stored internally and passed on the comparison function.
-It can also be retrieved explicitly by means of the `getResource` service:
+This object is passed in with the `open` config and stored internally.
+It can be retrieved explicitly by means of the `getResource` service:
 
 ```C
 void *beet_index_getResource(beet_index_t idx);
@@ -246,12 +246,12 @@ The `open` config has the following format:
 
 ```C
 typedef struct {
-	int32_t  leafCacheSize; // cache size for leaf nodes
-	int32_t   intCacheSize; // cache size for internal nodes
-	beet_compare_t compare; // pointer to compare function
-	beet_rscinit_t rscinit; // pointer to rsc init function
-	beet_rscinit_t rscdest; // pointer to rsc destroyer function
-	void              *rsc; // passed in to rscinit
+    int32_t  leafCacheSize; // cache size for leaf nodes
+    int32_t   intCacheSize; // cache size for internal nodes
+    beet_compare_t compare; // pointer to compare function
+    beet_rscinit_t rscinit; // pointer to rsc init function
+    beet_rscinit_t rscdest; // pointer to rsc destroyer function
+    void              *rsc; // passed in to rscinit
 } beet_open_config_t;
 ```
 
@@ -268,7 +268,14 @@ which overwrite the symbols of the same name in the `create` config.
 
 Finally, \*rsc is an arbitrary object that can be passed in to be used with `compare`.
 
-### Inserting and Searching
+Since we, usually, want to ignore most attributes of the `open` config,
+there is a handy function that initialises an `open` config with all values ignored:
+
+```C
+void beet_open_config_ignore(beet_open_config_t *cfg);
+```
+
+### Inserting
 
 Key/data pairs are inserted with the `insert` service:
 
@@ -282,12 +289,12 @@ If the key does not exist, it is inserted.
 If the key already exists, the function returns the error `BEET_ERR_DBLKEY`.
 An alternative to `insert` is the `upsert` service:
 
-The `upsert` service works exactly like `insert`, with the exception that it does not return an error
-if the key already exist but overwrites the data:
-
 ```C
 beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
 ```
+
+The `upsert` service works exactly like `insert`, with the exception that it does not return an error
+if the key exist but overwrites the data.
 
 The following code snippet would insert data into an index with keys of type `uint64_t` and data `double`:
 
@@ -297,12 +304,12 @@ double   d = 3.14159;
 
 err = beet_index_insert(idx, &k, &d);
 if (err != BEET_OK) {
-    errmsg(err, "cannot insert into index: %s\n", beet_errdesc(err));
+    fprintf(err, "cannot insert into index: %s\n", beet_errdesc(err));
     return EXIT_FAILURE;
 }
 ```
 
-When inserting into an index with an embedded tree, the data is a key value pair itself
+When inserting into an index with an embedded tree, the data is a key/value pair itself
 and must be of type `beet_pair_t`:
 
 ```C
@@ -320,15 +327,13 @@ uint64_t k = 12;
 
 for (uint64_t z=1; z<k; z++) {
     uint64_t r = k%z;
-    if (r != 0) {
-        beet_pair_t p;
-        p.key  = &z;
-        p.data = &r;
-        err = beet_index_insert(idx, &k, &p);
-        if (err != BEET_OK) {
-            errmsg(err, "cannot insert into index: %s\n", beet_errdesc(err));
-            return EXIT_FAILURE;
-        }
+    beet_pair_t p;
+    p.key  = &z;
+    p.data = &r;
+    beet_err_t err = beet_index_insert(idx, &k, &p);
+    if (err != BEET_OK) {
+        fprintf(stderr, "cannot insert into index: %s\n", beet_errdesc(err));
+        return EXIT_FAILURE;
     }
 }
 ```
@@ -339,14 +344,16 @@ We can check that a certain key was inserted into the tree by means of the `exis
 beet_err_t beet_index_doesExist(beet_index_t idx, const void *key);
 ```
 
-If the function return `BEET_OK`, the key exists.
+If the function returns `BEET_OK`, the key exists.
 If it does not exist, the function returns `BEET_ERR_KEYNOF`.
+
+To verify that a key exists in an embedded index we can use:
 
 ```C
 beet_err_t beet_index_doesExist2(beet_index_t idx, const void *key1, const void *key2);
 ```
 
-To verify that a key exists in an embedded index we can use:
+### Searching
 
 The simplest way to retrieve data from an index is the `copy` service:
 
@@ -364,16 +371,21 @@ double d;
 beet_err_t err = beet_index_copy(idx, &k, &d);
 if (err == BEET_ERR_KEYNOF) {
     fprintf(stderr, "key %lu not found\n", k);
-    return 0;
+    return EXIT_SUCCESS;
 } else if (err != BEET_OK) {
     fprintf(stderr, "cannot retrieve data for key %lu: %s\n", k, beet_errdesc(err));
-    return -1;
+    return EXIT_FAILURE;
 }
 fprintf(stdout, "%lu: %f\n", k, d);
 ```
 
-Unfortunately, `copy` cannot be used to retrieve data from an embedded index.
-Also, copying the data is not always the best solution, for example in cases where
+To copy data from an embedded index, we can use the following service:
+
+```C
+beet_err_t beet_index_copy2(beet_index_t idx, const void *key1, const void *key2, void *data);
+```
+
+Copying the data is not always the best solution, for example in cases where
 many retrievals are performed and the data is large.
 For such cases, the `get` service is available:
 
@@ -390,7 +402,9 @@ The second parameter `state` keeps track of the internal state, in particular
 and locks it from write access during this time. Therefore, the state should be released
 as soon a possible.
 
-The parameter `flags` should always be set to 0. SHOULD BE REMOVED.
+The parameter `flags` should almost always be set to 0.
+There are technical use cases where it makes sense to use other flags.
+But we don't cover such cases in the scope of this intro.
 
 Finally, the pointer `data` is set to the memory address of the data under the key.
 Overwriting the data at this position directly is **dangerous**:
@@ -427,16 +441,26 @@ for(uint64_t z=1; z <= k; z++) {
     err = beet_index_get2(idx, state, 0, &k, &z, &r);
     if (err != BEET_OK) {
        fprintf(stderr, "cannot retrieve data of %lu.%lu: %s\n", k, z, beet_errdesc(err));
-       beet_state_release(state); // release all locks
+       err = beet_state_release(state); // release all locks
+       if (err != BEET_OK) {
+           fprintf(stderr, "PANIC: cannot release state: %s\n", beet_errdesc(err));
+           return EXIT_FAILURE;
+       }
        beet_state_destroy(state); // free memory
-       return -1;
+       return EXIT_FAILURE;
     }
     fprintf(stdout, "The remainder of %lu and %lu is %lu\n", k, z, *r);
-    beet_state_release(state); // release all locks
+    err = beet_state_release(state); // release all locks
+    if (err != BEET_OK) {
+        fprintf(stderr, "PANIC: cannot release state: %s\n", beet_errdesc(err));
+        return EXIT_FAILURE;
+    }
     beet_state_reinit(state);  // clean state
 }
 beet_state_destroy(state); // free memory
 ```
+
+### Iterators
 
 An additional way to retrieve data is provided by iterators.
 Iterators are especially useful with range scans
@@ -483,12 +507,13 @@ beet_err_t beet_iter_move(beet_iter_t iter, void **key, void **data);
 
 The function sets the iterator to the next key
 (which is the first key in the range on first call)
-and set the pointers key and data to the data in the node.
+and sets the pointers key and data to the data in the node.
 As with the `get` services, the node remains in memory and is locked
 from concurrent write access until we move to the next node in the range.
+Range scan operations shall therefore be fast.
 
 If we have already reached the last node in the range,
-the function return `BEET_ERR_EOF`.
+the function returns `BEET_ERR_EOF`.
 
 When iterating over a key range of a host index,
 we can enter the embedded index by means of the `enter` service:
@@ -497,7 +522,7 @@ we can enter the embedded index by means of the `enter` service:
 beet_err_t beet_iter_enter(beet_iter_t iter);
 ```
 
-When we now `move` we pass to the next key/data pair in the embedded index.
+When we now `move` we pass to the next key/value pair in the embedded index.
 
 The `leave` service switches back to the range of the host index:
 
@@ -522,13 +547,13 @@ range.tokey = &to;
 err = beet_iter_alloc(idx, &iter);
 if (err != BEET_OK) {
     fprintf(stderr, "cannot create iter: %s\n", beet_errdesc(err));
-    return -1;
+    return EXIT_FAILURE;
 }
 err = beet_index_range(idx, &range, BEET_DIR_ASC, iter);
 if (err != BEET_OK) {
     fprintf(stderr, "cannot initiate iter: %s\n", beet_errdesc(err));
     beet_iter_destroy(iter);
-    return -1;
+    return EXIT_FAILURE;
 }
 while((err = beet_iter_move(iter, (void**)&k,
                                   (void**)&d)) == BEET_OK)
@@ -537,7 +562,7 @@ while((err = beet_iter_move(iter, (void**)&k,
     if (err != BEET_OK) {
         fprintf(stderr, "cannot enter key %lu: %s\n", k, beet_errdesc(err));
         beet_iter_destroy(iter);
-        return -1;
+        return EXIT_FAILURE;
     }
 
     while((err = beet_iter_move(iter, (void**)&z,
@@ -550,7 +575,7 @@ while((err = beet_iter_move(iter, (void**)&k,
     if (err != BEET_OK) {
         fprintf(stderr, "cannot leave key %lu: %s\n", k, beet_errdesc(err));
         beet_iter_destroy(iter);
-        return -1;
+        return EXIT_FAILURE;
     }
 }
 beet_iter_destroy(iter); // free memory
@@ -572,7 +597,7 @@ beet_err_t beet_index_delete2(beet_index_t idx, const void *key1, const void *ke
 
 Since deleting is a costly operation, there is an alternative approach.
 Keys can be hidden, so that retrieval operations won't find them.
-To hide a key in the index `hide` service is used:
+To hide a key in the index the `hide` service is used:
 
 ```C
 beet_err_t beet_index_hide(beet_index_t idx, const void *key);
@@ -581,10 +606,14 @@ beet_err_t beet_index_hide(beet_index_t idx, const void *key);
 To hide a key in an embedded index, `hide2` is used:
 
 ```C
-beet_err_t beet_index_hide2(beet_index_t idx, const void *key);
+beet_err_t beet_index_hide2(beet_index_t idx, const void *key1, const void *key2);
 ```
 
-Hidden keys can later be removed by an incremental background job
+When a hidden key is later inserted again,
+it is simply uncovered, so that it is visible again.
+
+To avoid that the tree continues growing,
+hidden keys can be removed by an incremental background job
 that would call delete on every hidden key:
 
 ```C
@@ -598,7 +627,7 @@ than the specified number of seconds, it will terminate.
 ## Testing
 
 The library is tested on Linux and should work
-on other systems as well. The tests use features
+on other POSIX systems as well. The tests use features
 only available on Linux (e.g. high resolution timers)
 and won't work on CygWin (and similar).
 
@@ -636,6 +665,9 @@ The library comes with a GNU Makefile.
 - `. setenv.sh`
   adds `./lib` to the `LD_LIBRARY_PATH`
 
-Beet depends on C99 and the [tsalgo](https://github.com/toschoo/tsalgo) library.
+Beet depends complies to C99
+and depends on the [tsalgo](https://github.com/toschoo/tsalgo) library.
 
 ## TODOs and Bugs
+
+- delete and purge are not yet implemented
