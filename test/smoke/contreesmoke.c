@@ -204,9 +204,9 @@ int writeRange(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 	beet_err_t    err;
 
 	for(int z=hi-1;z>=lo;z--) {
-		err = beet_tree_insert(tree, root, &z, &z);
+		err = beet_tree_upsert(tree, root, &z, &z);
 		if (err != BEET_OK) {
-			errmsg(err, "cannot insert into tree");
+			errmsg(err, "cannot upsert into tree");
 			return -1;
 		}
 	}

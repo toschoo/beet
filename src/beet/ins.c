@@ -17,7 +17,7 @@
  */
 beet_err_t beet_ins_plain(void *ignore, char upd, uint32_t sz, void* trg,
                                                         const void *data) {
-	if (upd) memcpy(trg, data, sz);
+	memcpy(trg, data, sz);
 	return BEET_OK;
 }
 
