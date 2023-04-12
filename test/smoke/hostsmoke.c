@@ -6,6 +6,8 @@
 
 #include <common/math.h>
 
+#include <tsalgo/map.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -66,7 +68,7 @@ int createDropIndex(char *base, char *path) {
 	return 0;
 }
 
-int writeRange(beet_index_t idx, int lo, int hi) {
+int writeRange(beet_index_t idx, ts_algo_map_t *hidden, int lo, int hi) {
 	beet_pair_t pair;
 	beet_err_t err;
 
@@ -81,6 +83,14 @@ int writeRange(beet_index_t idx, int lo, int hi) {
 				errmsg(err, "cannot insert");
 				return -1;
 			}
+			uint64_t x = (n << 16) + i;
+			if (ts_algo_map_getId(hidden, x) != NULL) {
+				if (ts_algo_map_removeId(hidden, x) == NULL) {
+					fprintf(stderr, "cannot remove key %lu from map\n", i);
+					return -1;
+				}
+			}
+
 		}
 	}
 	return 0;
@@ -100,7 +110,7 @@ int testDoesExist(beet_index_t idx, int hi) {
 	return 0;
 }
 
-int deepExists(beet_index_t idx, int hi) {
+int deepExists(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
 	beet_err_t err;
 	uint64_t k=0;
 
@@ -109,6 +119,8 @@ int deepExists(beet_index_t idx, int hi) {
 
 		for(uint64_t z=1;z<=k; z++) {
 			if (gcd(k,z) != 1) continue;
+			uint64_t x = (k << 16) + z;
+			if (ts_algo_map_getId(hidden, x) != NULL) continue;
 			// fprintf(stderr, "reading %lu/%lu\n",k,z);
 			err = beet_index_doesExist2(idx, &k, &z);
 			if (err != BEET_OK) {
@@ -122,7 +134,7 @@ int deepExists(beet_index_t idx, int hi) {
 	return 0;
 }
 
-int readDeep(beet_index_t idx, int hi) {
+int readDeep(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
 	beet_state_t state=NULL;
 	beet_err_t err;
 	uint64_t k=0;
@@ -137,6 +149,8 @@ int readDeep(beet_index_t idx, int hi) {
 
 		for(uint64_t z=1;z<=k; z++) {
 			if (gcd(k,z) != 1) continue;
+			uint64_t x = (k << 16) + z;
+			if (ts_algo_map_getId(hidden, x) != NULL) continue;
 			// fprintf(stderr, "reading %lu/%lu\n", k,z);
 			err = beet_index_get2(idx, state, BEET_FLAGS_RELEASE,
 			                                       &k, &z, NULL);
@@ -149,6 +163,39 @@ int readDeep(beet_index_t idx, int hi) {
 		}
 	}
 	beet_state_destroy(state);
+	return 0;
+}
+
+#define FAKEDATA (char*)0x1
+int hideAndSeek(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
+	beet_err_t err;
+	uint64_t k;
+
+	for(int i=0; i<100; i++) {
+
+		k=rand()%hi;
+
+		for(uint64_t z=1;z<=k; z++) {
+			if (gcd(k,z) != 1) continue;
+			uint64_t x = (k << 16) + z;
+			if (ts_algo_map_getId(hidden, x) != NULL) continue;
+
+			int doHide = rand()%20;
+
+			if (doHide == 1) {
+				// fprintf(stderr, "hiding %lu/%lu\n", k, z);
+				err = beet_index_hide2(idx, &k, &z);
+				if (err != BEET_OK) {
+					fprintf(stderr, "cannot hide: %d\n", err);
+					return -1;
+				}
+				if (ts_algo_map_addId(hidden, x, FAKEDATA) != TS_ALGO_OK) {
+					fprintf(stderr, "cannot add key %lu to map\n", x);
+					return -1;
+				}
+			}
+		}
+	}
 	return 0;
 }
 
@@ -207,7 +254,9 @@ int main() {
 	int rc = EXIT_SUCCESS;
 	beet_index_t idx;
 	int haveIndex = 0;
+	int haveMap   = 0;
 	void *handle = NULL;
+	ts_algo_map_t hidden;
 
 	srand(time(NULL) ^ (uint64_t)&printf);
 
@@ -250,9 +299,15 @@ int main() {
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	haveIndex = 1;
+
+	if (ts_algo_map_init(&hidden, 0, ts_algo_hash_id, NULL) != TS_ALGO_OK) {
+		fprintf(stderr, "cannot init map\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	haveMap = 1;
 	
 	/* test with 13 (key,value) pairs */
-	if (writeRange(idx, 1, 13) != 0) {
+	if (writeRange(idx, &hidden, 1, 13) != 0) {
 		fprintf(stderr, "writeRange 1-13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -260,17 +315,21 @@ int main() {
 		fprintf(stderr, "testDoesExist 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (deepExists(idx, 13) != 0) {
+	if (deepExists(idx, &hidden, 13) != 0) {
 		fprintf(stderr, "deepExists 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (readDeep(idx, 13) != 0) {
+	if (readDeep(idx, &hidden, 13) != 0) {
 		fprintf(stderr, "readDeep 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (hideAndSeek(idx, &hidden, 13) != 0) {
+		fprintf(stderr, "hideAndSeek 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
 	/* test with 64 (key,value) pairs */
-	if (writeRange(idx, 13, 64) != 0) {
+	if (writeRange(idx, &hidden, 13, 64) != 0) {
 		fprintf(stderr, "writeRange 13-64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -278,17 +337,21 @@ int main() {
 		fprintf(stderr, "testDoesExist 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (deepExists(idx, 64) != 0) {
+	if (deepExists(idx, &hidden, 64) != 0) {
 		fprintf(stderr, "testDoesExist 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (readDeep(idx, 64) != 0) {
+	if (readDeep(idx, &hidden, 64) != 0) {
 		fprintf(stderr, "readDeep 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (hideAndSeek(idx, &hidden, 64) != 0) {
+		fprintf(stderr, "hideAndSeek 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
 	/* test with 99 (key,value) pairs */
-	if (writeRange(idx, 50, 99) != 0) {
+	if (writeRange(idx, &hidden, 50, 99) != 0) {
 		fprintf(stderr, "writeRange 50-99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -305,17 +368,21 @@ int main() {
 		fprintf(stderr, "testDoesExist 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (deepExists(idx, 99) != 0) {
+	if (deepExists(idx, &hidden, 99) != 0) {
 		fprintf(stderr, "deepExists 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (readDeep(idx, 99) != 0) {
+	if (readDeep(idx, &hidden, 99) != 0) {
 		fprintf(stderr, "readDeep 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (hideAndSeek(idx, &hidden, 99) != 0) {
+		fprintf(stderr, "hideAndSeek 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 
 	/* test with 200 (key,value) pairs */
-	if (writeRange(idx, 99, 200) != 0) {
+	if (writeRange(idx, &hidden, 99, 200) != 0) {
 		fprintf(stderr, "writeRange 99-200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -323,11 +390,11 @@ int main() {
 		fprintf(stderr, "testDoesExist 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (deepExists(idx, 200) != 0) {
+	if (deepExists(idx, &hidden, 200) != 0) {
 		fprintf(stderr, "testDoesExist 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
-	if (readDeep(idx, 200) != 0) {
+	if (readDeep(idx, &hidden, 200) != 0) {
 		fprintf(stderr, "readDeep 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
@@ -335,9 +402,14 @@ int main() {
 		fprintf(stderr, "dontfind 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (hideAndSeek(idx, &hidden, 200) != 0) {
+		fprintf(stderr, "hideAndSeek 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 
 cleanup:
 	if (haveIndex) beet_index_close(idx);
+	if (haveMap) ts_algo_map_destroy(&hidden);
 	if (handle != NULL) beet_lib_close(handle);
 	if (rc == EXIT_SUCCESS) {
 		fprintf(stderr, "PASSED\n");

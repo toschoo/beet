@@ -1,10 +1,10 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * ========================================================================
  * B+Node Abstraction
  * ========================================================================
  *
- * The binary format of a node, which is store in a page, is
+ * The binary format of a node, which is stored in a page, is
  *
  * 1) Internal Node
  *    +------------------------------------------+
@@ -12,7 +12,7 @@
  *    +------------------------------------------+
  *     4byte  keysize*nodesz    4*(nodsz+1)
  *
- *    Here, keysize and nodesz mean the repective size
+ *    Here, keysize and nodesz mean the respective size
  *    stored in the tree structure (i.e. 
  *    - keysize: size of 1 key
  *    - nodesz : max number of keys per node)
@@ -40,16 +40,20 @@
  *    We consequently need n+1 kids for n keys.
  *
  * 2) Leaf Node
- *    +------------------------------------------------------+
- *    | Size | Next | Prev | Keys[nodesize] | Kids[nodesize] |
- *    +------------------------------------------------------+
- *     4byte  4byte  4byte   keysize*nodesz   datasize*nodesz
+ *    +-------------------------------------------------------------------+
+ *    | Size | Next | Prev | Control    | Keys[nodesize] | Kids[nodesize] |
+ *    +-------------------------------------------------------------------+
+ *     4byte  4byte  4byte   nodesz/8+1   keysize*nodesz   datasize*nodesz
  *
  *    The keys, as before, contain the keys of this tree and
  *    the kids contain the data for their keys.
  *
  *    Next points to the next leaf node in the chain.
  *    Prev points to the previous leaf node in the chain.
+ *
+ *    Control is a block of bits that indicate whether the key is
+ *      - actually present or
+ *      - hidden (i.e. soft-deleted)
  *
  *    This way, leaf nodes form a doubly linked list
  *    through which we can iterate scanning a range of keys
@@ -58,6 +62,8 @@
  */
 #include <beet/node.h>
 #include <string.h>
+
+#define CTRLSZ BEET_NODE_CTRLSZ
 
 /* ------------------------------------------------------------------------
  * initialise a node from a page (i.e. page -> node)
@@ -81,12 +87,26 @@ void beet_node_init(beet_node_t *node,
 		off += sizeof(int32_t);
 		memcpy(&node->prev, page->data+off, sizeof(uint32_t));
 		off += sizeof(int32_t);
+		node->ctrl = (uint8_t*)page->data+off; off += CTRLSZ(nodesz);
+
+		/* debug
+		uint16_t x = 0xdead;
+		memcpy(node->ctrl, &x, 2);
+		*/
 	}
 
-	// fprintf(stderr, "NODE SIZE: %d\n", node->size);
+	// fprintf(stderr, "NODE SIZE : %d\n", node->size);
 	
-	node->keys = page->data+off;
-	node->kids = page->data+off + keysz*nodesz;
+	node->keys = page->data+off; off += keysz*nodesz;
+	node->kids = page->data+off;
+
+	/* debug
+	fprintf(stderr, "CTRL BLOCK (%u): ", CTRLSZ(nodesz));
+	for(int i=1;i>=0;i--) {
+		fprintf(stderr, "%x", (uint8_t)*(node->ctrl+i));
+	}
+	fprintf(stderr, "\n");
+	*/
 }
 
 /* ------------------------------------------------------------------------
@@ -120,10 +140,85 @@ static inline beet_err_t ad3ata(beet_node_t *node,
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: test if key at slot is hidden
+ * ------------------------------------------------------------------------
+ */
+static inline uint8_t hidden(beet_node_t  *node,
+                             uint32_t      slot) {
+	int     y = slot/8;
+	int     i = slot%8;
+	uint8_t m = 1<<i;
+
+	return (node->ctrl[y] & m);
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: set hidden
+ * ------------------------------------------------------------------------
+ */
+static inline void hide(beet_node_t *node,
+                        uint32_t     slot) {
+	int     y = slot/8;
+	int     i = slot%8;
+	uint8_t m = 1<<i;
+	node->ctrl[y] |= m;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: unset hidden
+ * ------------------------------------------------------------------------
+ */
+static inline void unhide(beet_node_t *node,
+                          uint32_t     slot) {
+	int     y = slot/8;
+	int     i = slot%8;
+	uint8_t m = 1<<i;
+
+	if ((node->ctrl[y] & m)) {
+		node->ctrl[y] ^= m;
+	}
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: shift control block to match keys after shift
+ * ------------------------------------------------------------------------
+ */
+static inline void shiftctrl(beet_node_t *node,
+                             uint32_t     slot,
+                             uint32_t    nsize) {
+	int y = slot/8; // byte
+	int i = slot%8; // bit
+	uint8_t c = 0;  // carry
+	uint8_t n = 0;  // new value
+
+	// first byte
+	for(int z=0; z<i; z++) {
+		if (node->ctrl[y] & (1<<z)) n |= (1<<z);
+	}
+	for (int z=i; z<7; z++) {
+		if (node->ctrl[y] & (1<<z)) n |= (1<<(z+1));
+	}
+	if (node->ctrl[y] & 128) c = 1;
+	node->ctrl[y] = n;
+
+	// remaining bytes
+	for(int k=y+1; k<nsize; k++) {
+		n = 0;
+		for (int z=0; z<7; z++) {
+			if (node->ctrl[k] & (1<<z)) n |= (1<<(z+1));
+		}
+		if (c) n |= 1;
+		if (node->ctrl[k] & 128) c = 1; else c = 0;
+		node->ctrl[k] = n;
+	}
+}
+
+/* ------------------------------------------------------------------------
  * Helper: add (key,data) to node
  * ------------------------------------------------------------------------
  */
 static inline beet_err_t add2slot(beet_node_t *node,
+                                  uint32_t    nsize,
                                   uint32_t    ksize,
                                   uint32_t    dsize,
                                   uint32_t     slot,
@@ -135,7 +230,10 @@ static inline beet_err_t add2slot(beet_node_t *node,
 	uint32_t dsz;
 
 	/* shift keys starting from 'slot' one to the right */
-	if (shift > 0) memmove(src+ksize,src,shift);
+	if (shift > 0) {
+		memmove(src+ksize,src,shift);
+		if (node->leaf) shiftctrl(node, slot, CTRLSZ(nsize));
+	}
 
 	/* new key goes to 'slot' */
 	memcpy(node->keys+slot*ksize, key, ksize);
@@ -232,7 +330,7 @@ static inline int32_t binsearch(char          *keys,
 		if (x == BEET_CMP_EQUAL) return i;
 		if (x == BEET_CMP_LESS) {
 			e = i-1; // go left
-			if (i < r) r = i; // this is a smaller greater one
+			if (i < r) r = i; // this is the smallest greater one
 		}
 		else s = i+1; // go right
 	}
@@ -270,13 +368,14 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	    beet_node_equal(node,slot,ksize,key,cmp,rsc)) {
 		if (node->leaf) {
 			*wrote = 1;
+			if (beet_node_hidden(node, slot)) unhide(node, slot); // unhide
 			return ad3ata(node, dsize, slot, data, upd, ins);
 		}
 		return BEET_OK;
 	}
 
 	/* otherwise: add the key */
-	err = add2slot(node, ksize, dsize, slot, key, data, ins);
+	err = add2slot(node, nsize, ksize, dsize, slot, key, data, ins);
 	if (err != BEET_OK) return err;
 
 	*wrote = 1;
@@ -314,19 +413,45 @@ int32_t beet_node_search(beet_node_t  *node,
                          beet_compare_t cmp,
                          void          *rsc) {
 	if (node->size == 0) return -1;
-	int idx = binsearch(node->keys, key, keysz, node->size, cmp, rsc);
-	return idx;
+	return binsearch(node->keys, key, keysz, node->size, cmp, rsc);
 }
 
 /* ------------------------------------------------------------------------
  * Test that key at slot is equal to 'key'
  * ------------------------------------------------------------------------
  */
-char beet_node_equal(beet_node_t *node,
-                     uint32_t     slot,
-                     uint32_t    keysz,
-                     const void   *key,
-                    beet_compare_t cmp,
-                    void          *rsc) {
+uint8_t beet_node_equal(beet_node_t *node,
+                        uint32_t     slot,
+                        uint32_t    keysz,
+                        const void   *key,
+                       beet_compare_t cmp,
+                       void          *rsc) {
 	return (cmp(key,node->keys+slot*keysz,rsc) == BEET_CMP_EQUAL);
+}
+
+/* ------------------------------------------------------------------------
+ * Test if key at slot is hidden
+ * ------------------------------------------------------------------------
+ */
+uint8_t beet_node_hidden(beet_node_t  *node,
+                         uint32_t      slot) {
+	return hidden(node, slot);
+}
+
+/* ------------------------------------------------------------------------
+ * Hide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_hide(beet_node_t *node,
+                    uint32_t     slot) {
+	hide(node, slot);
+}
+
+/* ------------------------------------------------------------------------
+ * Unhide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_unhide(beet_node_t *node,
+                      uint32_t     slot) {
+	unhide(node, slot);
 }

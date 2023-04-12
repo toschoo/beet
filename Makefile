@@ -17,7 +17,7 @@ CFLAGS = -g -O3 -Wall -std=c99 -fPIC -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -L./lib
 
 INC = -I./include -I./test -I./src -I./
-LIB = lib
+LIB = lib/libbeet.so
 libs=-lm -ldl -lpthread -ltsalgo
 
 SRC = src/beet
@@ -132,35 +132,40 @@ $(SMK)/pagesmoke:	lib $(SMK)/pagesmoke.o $(COM)/math.o
 			$(CC) $(LDFLAGS) -o $(SMK)/pagesmoke   \
 			                    $(SMK)/pagesmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/ridersmoke:	lib $(SMK)/ridersmoke.o $(COM)/math.o
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/ridersmoke   \
 			                    $(SMK)/ridersmoke.o \
 			                    $(COM)/math.o       \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/nodesmoke:	lib $(SMK)/nodesmoke.o $(COM)/math.o
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/nodesmoke   \
 			                    $(SMK)/nodesmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/treesmoke:	lib $(SMK)/treesmoke.o $(COM)/math.o 
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/treesmoke   \
 			                    $(SMK)/treesmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/embeddedsmoke:	lib $(SMK)/embeddedsmoke.o $(COM)/math.o
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/embeddedsmoke  \
 			                    $(SMK)/embeddedsmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/contreesmoke:	lib $(SMK)/contreesmoke.o $(COM)/cmd.o \
 			                          $(COM)/bench.o
@@ -169,14 +174,16 @@ $(SMK)/contreesmoke:	lib $(SMK)/contreesmoke.o $(COM)/cmd.o \
 			                    $(SMK)/contreesmoke.o \
 			                    $(COM)/cmd.o      \
 			                    $(COM)/bench.o    \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/indexsmoke:	lib $(SMK)/indexsmoke.o $(COM)/math.o 
 			$(LNKMSG)
 			$(CC) $(LDFLAGS) -o $(SMK)/indexsmoke   \
 			                    $(SMK)/indexsmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(OUTLIB)/libcmp.so:	$(COM)/cmp.o
 			$(LNKMSG)
@@ -190,7 +197,8 @@ $(SMK)/hostsmoke:	lib $(SMK)/hostsmoke.o $(COM)/math.o \
 			$(CC) $(LDFLAGS) -o $(SMK)/hostsmoke   \
 			                    $(SMK)/hostsmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/rscsmoke:	lib $(SMK)/rscsmoke.o $(COM)/math.o \
 			$(OUTLIB)/libcmp.so
@@ -198,7 +206,8 @@ $(SMK)/rscsmoke:	lib $(SMK)/rscsmoke.o $(COM)/math.o \
 			$(CC) $(LDFLAGS) -o $(SMK)/rscsmoke   \
 			                    $(SMK)/rscsmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/rangesmoke:	lib $(SMK)/rangesmoke.o $(COM)/math.o \
 			$(OUTLIB)/libcmp.so
@@ -206,7 +215,8 @@ $(SMK)/rangesmoke:	lib $(SMK)/rangesmoke.o $(COM)/math.o \
 			$(CC) $(LDFLAGS) -o $(SMK)/rangesmoke   \
 			                    $(SMK)/rangesmoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(SMK)/range2smoke:	lib $(SMK)/range2smoke.o $(COM)/math.o \
 			$(OUTLIB)/libcmp.so
@@ -214,7 +224,8 @@ $(SMK)/range2smoke:	lib $(SMK)/range2smoke.o $(COM)/math.o \
 			$(CC) $(LDFLAGS) -o $(SMK)/range2smoke   \
 			                    $(SMK)/range2smoke.o \
 			                    $(COM)/math.o      \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			$(COM)/math.o $(COM)/bench.o $(COM)/cmd.o
@@ -224,7 +235,8 @@ $(STRS)/riderstress:	lib $(STRS)/riderstress.o \
 			                    $(COM)/math.o        \
 			                    $(COM)/bench.o       \
 			                    $(COM)/cmd.o         \
-			                    $(libs) -lbeet
+			                    $(LIB)              \
+			                    $(libs)
 
 # Bench
 $(BIN)/writebench:	lib $(BENCH)/writebench.o \
@@ -234,7 +246,8 @@ $(BIN)/writebench:	lib $(BENCH)/writebench.o \
 			$(BENCH)/writebench.o \
 			$(COM)/bench.o       \
 			$(COM)/cmd.o         \
-			$(libs) -lbeet
+			$(LIB)              \
+			$(libs)
 
 $(BIN)/readbench:	lib $(BENCH)/readbench.o \
 			$(OUTLIB)/libcmp.so $(COM)/bench.o $(COM)/cmd.o
@@ -243,7 +256,8 @@ $(BIN)/readbench:	lib $(BENCH)/readbench.o \
 			$(BENCH)/readbench.o \
 			$(COM)/bench.o       \
 			$(COM)/cmd.o         \
-			$(libs) -lbeet
+			$(LIB)              \
+			$(libs)
 
 # Tools
 $(BIN)/beet:	lib $(TOOLS)/beet.o \
@@ -251,8 +265,9 @@ $(BIN)/beet:	lib $(TOOLS)/beet.o \
 		$(LNKMSG)
 		$(CC) $(LDFLAGS) -o $(BIN)/beet \
 		$(TOOLS)/beet.o \
-		$(COM)/cmd.o         \
-		$(libs) -lbeet
+		$(COM)/cmd.o    \
+		$(LIB)          \
+		$(libs)
 
 # Clean up
 clean:

@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * 
  * This file is part of the BEET Library.
  *
@@ -100,21 +100,42 @@ beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data);
 beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
 
 /* ------------------------------------------------------------------------
- * Removes a key and all its data from the index
- * TODO: implement!
+ * Hide a key from the index. The key won't be found any more
+ * but is physically still in the tree. This operation is much
+ * faster than deleting keys.
+ * If the key is later inserted again, it will be unhidden.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
+beet_err_t beet_index_hide(beet_index_t idx, const void *key);
 
 /* ------------------------------------------------------------------------
- * Removes data from a subtree and, if all data were removed
- * from that subtree, also removes the key from the main tree.
+ * Hide a key from a subtree.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_hide2(beet_index_t idx, const void *key1,
+                                              const void *key2);
+
+/* ------------------------------------------------------------------------
+ * Remove hidden keys.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_purge(beet_index_t idx, int runtime);
+
+/* ------------------------------------------------------------------------
+ * Removes a key and all its data from the index.
  * TODO: implement!
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_delete(beet_index_t  idx,
-                             void        *key1,
-                             void        *key2);
+beet_err_t beet_index_delete(beet_index_t idx, const void *key);
+
+/* ------------------------------------------------------------------------
+ * Removes single data point from a subtree.
+ * TODO: implement!
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_delete2(beet_index_t  idx,
+                              const void  *key1,
+                              const void  *key2);
 
 /* ------------------------------------------------------------------------
  * Compute the height of the tree

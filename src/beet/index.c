@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * 
  * This file is part of the BEET Library.
  *
@@ -619,23 +619,6 @@ beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data) {
 }
 
 /* ------------------------------------------------------------------------
- * Removes a key and all its data from the index
- * TODO: implement!
- * ------------------------------------------------------------------------
- */
-beet_err_t beet_index_deleteKey(beet_index_t idx, void *key);
-
-/* ------------------------------------------------------------------------
- * Removes a single data point from a subindex and, 
- * if this was the last one, also its key from the main index.
- * TODO: implement!
- * ------------------------------------------------------------------------
- */
-beet_err_t beet_index_delete(beet_index_t  idx,
-                             void         *key1,
-                             void         *key2);
-
-/* ------------------------------------------------------------------------
  * Helper: release state
  * TODO:
  * what to do when release fails (leaking memory?)
@@ -658,6 +641,67 @@ static inline beet_err_t staterelease(beet_state_t state) {
 	CLEANSTATE(state);
 	return BEET_OK;
 }
+
+/* ------------------------------------------------------------------------
+ * Hide a key from the index. The key won't be found any more
+ * but is physically still in the tree. This operation is much
+ * faster than deleting keys.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_hide(beet_index_t idx, const void *key) {
+	IDXNULL();
+	return beet_tree_hide(idx->tree,
+	                     &idx->root, key);
+}
+
+/* ------------------------------------------------------------------------
+ * Hide a key in the embedded index
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_hide2(beet_index_t   idx,
+                            const void   *key1,
+                            const void   *key2) {
+	beet_err_t err;
+	struct beet_state_t state;
+
+	IDXNULL();
+	if (idx->subidx == NULL) return BEET_ERR_NOSUB;
+
+	CLEANSTATE(&state);
+
+	err = beet_index_get(idx, &state, BEET_FLAGS_ROOT, key1, NULL);
+	if (err != BEET_OK) return err;
+
+	err = beet_tree_hide(idx->subidx->tree, state.root, key2);
+	staterelease(&state);
+	if (err != BEET_OK) {
+		return err;
+	}
+	// should we hide the upper key if all data are hidden?
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
+ * Remove hidden keys.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_purge(beet_index_t idx, int runtime);
+
+/* ------------------------------------------------------------------------
+ * Removes a key and all its data from the index
+ * TODO: implement!
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_delete(beet_index_t idx, const void *key);
+
+/* ------------------------------------------------------------------------
+ * Removes a single data point from a subindex.
+ * TODO: implement!
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_delete2(beet_index_t  idx,
+                              const void   *key1,
+                              const void   *key2);
 
 /* ------------------------------------------------------------------------
  * Helper: get data
@@ -689,6 +733,10 @@ static beet_err_t getdata(beet_index_t idx,
 	if (!beet_node_equal(node, slot, idx->tree->ksize,
 	                           key,  idx->tree->cmp,
 	                                 idx->tree->rsc)) {
+		beet_tree_release(idx->tree, node); free(node);
+		return BEET_ERR_KEYNOF;
+	}
+	if (beet_node_hidden(node, slot)) {
 		beet_tree_release(idx->tree, node); free(node);
 		return BEET_ERR_KEYNOF;
 	}
@@ -857,8 +905,8 @@ beet_err_t beet_index_doesExist2(beet_index_t   idx,
 
 	err = beet_index_get(idx, &state, BEET_FLAGS_SUBTREE |
 	                                  BEET_FLAGS_RELEASE, key2, NULL);
+	staterelease(&state);
 	if (err != BEET_OK) {
-		staterelease(&state);
 		return err;
 	}
 	return BEET_OK;

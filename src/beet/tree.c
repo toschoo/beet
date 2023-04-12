@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * ========================================================================
  * B+Tree Abstraction
  * ========================================================================
@@ -261,6 +261,7 @@ static inline beet_err_t storeNode(beet_tree_t *tree,
 	} else {
 		err = beet_rider_store(tree->nolfs, node->page);
 	}
+
 	return err;
 }
 
@@ -398,6 +399,51 @@ static inline beet_err_t setPrev(beet_tree_t *tree,
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: shift a block of bytes downwards
+ * ------------------------------------------------------------------------
+ */
+static inline void bulkshift(uint8_t *buf, int sz, int x) {
+	uint8_t n = 0;
+
+	n = buf[0] >> x;
+	for (int i=1; i<sz; i++) {
+		uint8_t m = buf[i];
+		for (int z=0; z<x; z++) {
+			if (m & (1<<z)) {
+				n |= (1<<(8-x+z));
+			}
+		}
+		buf[i-1] = n;
+		n = buf[i] >> x;
+	}
+	buf[sz-1] = n;
+}
+
+/* ------------------------------------------------------------------------
+ * Helper: split control block
+ * ------------------------------------------------------------------------
+ */
+static inline void splitctrl(uint8_t *src, uint8_t *trg, int s, int split) {
+	int y = split/8;
+	int i = split%8;
+
+	memcpy(trg, src+y, s-y);
+	bulkshift(trg, s, i);
+
+	// if i is 0 we are on a byte boundary
+	if (i == 0) y--; else {
+ 		// set last bits of split byte to 0
+		src[y] <<= (8-i);
+		src[y] >>= (8-i);
+	}
+
+ 	// erase higher bytes
+	if (y+1 < s) {
+		memset(src+y+1, 0, s-y-1);
+	}
+}
+
+/* ------------------------------------------------------------------------
  * Helper: split node
  * ------------------------------------------------------------------------
  */
@@ -455,6 +501,9 @@ static inline beet_err_t split(beet_tree_t *tree,
 			return err;
 		}
 
+		// copy control block
+		splitctrl(src->ctrl, (*trg)->ctrl, BEET_NODE_CTRLSZ(tree->nsize), src->size/2);
+
 		dsz = tree->dsize;
 		if (dsz > 0) {
 			off = src->size/2 * dsz;
@@ -505,11 +554,14 @@ static beet_err_t insert(beet_tree_t   *tree,
 	void *s;
 	beet_err_t err;
 	char     wrote;
+	uint32_t nsize;
 
-	err = beet_node_add(node, tree->nsize,
+	nsize = node->leaf ? tree->lsize : tree->nsize;
+
+	err = beet_node_add(node, nsize,
 			          tree->ksize,
 			          tree->dsize,
-			          key, data,        
+			          key, data,
 			          tree->cmp,
 	                          tree->rsc,
 			          tree->ins,
@@ -702,7 +754,7 @@ static beet_err_t findNode(beet_tree_t     *tree,
 	 * do not like this. But we must not
 	 * release the previous lock earlier.
 	 * Otherwise, something may change
-	 * before we actually reach the our target */
+	 * before we actually reach our target */
 	err = getNode(tree, pge, mode, trg);
 	if (err != BEET_OK) {
 		if (mode == READ) {
@@ -790,6 +842,81 @@ static inline beet_err_t insorupsert(beet_tree_t   *tree,
 }
 
 /* ------------------------------------------------------------------------
+ * Helper: hide or uncover data in the tree
+ * ------------------------------------------------------------------------
+ */
+static inline beet_err_t hide(beet_tree_t   *tree,
+                              beet_pageid_t *root,
+                              const void     *key,
+                              char           undo) {
+	beet_err_t err = BEET_OK;
+	beet_err_t err2; /* for LOCK and UNLOCK */
+	ts_algo_list_t nodes;
+	beet_node_t *node, *leaf;
+	int32_t slot;
+	char lock = 1; /* root poiner is locked */
+
+	TREENULL();
+	ROOTNULL();
+
+	if (key  == NULL) return BEET_ERR_NOKEY;
+
+	ts_algo_list_init(&nodes);
+
+	LOCK(WRITE);
+
+	err = getNode(tree, *root, WRITE, &node);
+	if (err != BEET_OK) {
+		UNLOCK(WRITE, &lock);
+		return err;
+	}
+
+	err = findNode(tree, node, &leaf, WRITE, key, &lock, &nodes);
+	if (err != BEET_OK) {
+		unlockAll(tree, &lock, &nodes);
+		return err;
+	}
+
+	err = unlockAll(tree, &lock, &nodes); // unlock all but the leaf
+	if (err != BEET_OK) return err;
+
+	slot = beet_node_search(leaf, tree->ksize,
+	                        key,  tree->cmp,
+	                              tree->rsc);
+	if (slot < 0 || slot > tree->lsize) {
+		err = BEET_ERR_KEYNOF; goto unlock;
+	}
+	if (!beet_node_equal(leaf, slot, tree->ksize,
+	                           key,  tree->cmp,
+	                                 tree->rsc)) {
+		err = BEET_ERR_KEYNOF; goto unlock;
+	}
+
+	uint8_t hidden = beet_node_hidden(leaf, slot);
+	if (hidden) {
+		if (undo) beet_node_unhide(leaf, slot); else {
+			err = BEET_ERR_KEYNOF; goto unlock;
+		}
+	} else {
+		if (!undo) beet_node_hide(leaf, slot); else {
+			err = BEET_ERR_KEYNOH; goto unlock;
+		}
+	}
+
+	err = storeNode(tree, leaf);
+	if (err != BEET_OK) goto unlock;
+
+unlock:
+	err2 = releaseNode(tree, leaf); free(leaf);
+	if (err2 != BEET_OK) {
+		unlockAll(tree, &lock, &nodes);
+		return err2;
+	}
+
+	return err;
+}
+
+/* ------------------------------------------------------------------------
  * Insert data into the tree without update if the key already exists
  * ------------------------------------------------------------------------
  */
@@ -809,6 +936,26 @@ beet_err_t beet_tree_upsert(beet_tree_t   *tree,
                             const void     *key,
                             const void    *data) {
 	return insorupsert(tree, root, key, data, 1);
+}
+
+/* ------------------------------------------------------------------------
+ * Hide a key in the tree without removing data physically
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_hide(beet_tree_t   *tree,
+                          beet_pageid_t *root,
+                          const void     *key) {
+	return hide(tree, root, key, 0);
+}
+
+/* ------------------------------------------------------------------------
+ * Uncover a hidden key in the tree.
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_tree_unhide(beet_tree_t   *tree,
+                            beet_pageid_t *root,
+                            const void     *key) {
+	return hide(tree, root, key, 1);
 }
 
 /* ------------------------------------------------------------------------

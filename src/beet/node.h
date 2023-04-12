@@ -1,5 +1,5 @@
 /* ========================================================================
- * (c) Tobias Schoofs, 2018
+ * (c) Tobias Schoofs, 2018 -- 2023
  * ========================================================================
  * B+Node Abstraction
  * ========================================================================
@@ -27,12 +27,16 @@ typedef struct {
 	beet_pageid_t next; /* next node (leaf only)      */
 	beet_pageid_t prev; /* previous node (leaf only)  */
 	uint32_t      size; /* number of keys in the node */
+	uint8_t      *ctrl; /* control block (leaf only)  */
 	char         *keys; /* array of keys              */
 	char         *kids; /* array of pointers          */
 	beet_page_t  *page; /* the page data              */
 	char          mode; /* reading or writing         */
 	char          leaf; /* is leaf node               */
 } beet_node_t;
+
+#define BEET_NODE_CTRLSZ(x) (x/8+1)
+
 
 /* ------------------------------------------------------------------------
  * Initialise the node from a page
@@ -115,10 +119,31 @@ int32_t beet_node_search(beet_node_t  *node,
  * Test that key at slot is equal to 'key'
  * ------------------------------------------------------------------------
  */
-char beet_node_equal(beet_node_t  *node,
-                     uint32_t      slot,
-                     uint32_t     keysz,
-                     const void    *key,
-                     beet_compare_t cmp,
-                     void          *rsc);
+uint8_t beet_node_equal(beet_node_t  *node,
+                        uint32_t      slot,
+                        uint32_t     keysz,
+                        const void    *key,
+                        beet_compare_t cmp,
+                        void          *rsc);
+
+/* ------------------------------------------------------------------------
+ * Test if key at slot is hidden
+ * ------------------------------------------------------------------------
+ */
+uint8_t beet_node_hidden(beet_node_t  *node,
+                         uint32_t      slot);
+
+/* ------------------------------------------------------------------------
+ * Hide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_hide(beet_node_t *node,
+                    uint32_t     slot);
+
+/* ------------------------------------------------------------------------
+ * Unhide a given key
+ * ------------------------------------------------------------------------
+ */
+void beet_node_unhide(beet_node_t *node,
+                      uint32_t     slot);
 #endif
