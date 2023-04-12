@@ -140,9 +140,9 @@ int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, int lo, int hi) {
 		for(int i=0;i<=z;i++) {
 			pair.key = &i;
 			pair.data = NULL;
-			err = beet_tree_insert(tree, root, &z, &pair);
+			err = beet_tree_upsert(tree, root, &z, &pair);
 			if (err != BEET_OK) {
-				errmsg(err, "cannot insert into tree");
+				errmsg(err, "cannot upsert into tree");
 				return -1;
 			}
 		}

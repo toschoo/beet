@@ -65,9 +65,9 @@ int writeRange(beet_index_t idx, int lo, int hi) {
 
 	fprintf(stderr, "writing %d to %d\n", lo, hi);
 	for(int i=lo; i<hi; i++) {
-		err = beet_index_insert(idx, &i, &i);
+		err = beet_index_upsert(idx, &i, &i);
 		if (err != BEET_OK) {
-			errmsg(err, "cannot insert");
+			errmsg(err, "cannot upsert");
 			return -1;
 		}
 	}

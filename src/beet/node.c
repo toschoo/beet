@@ -367,8 +367,10 @@ beet_err_t beet_node_add(beet_node_t     *node,
 	if (slot < node->size &&
 	    beet_node_equal(node,slot,ksize,key,cmp,rsc)) {
 		if (node->leaf) {
+			if (beet_node_hidden(node, slot)) unhide(node, slot); else {
+				if (!upd) return BEET_ERR_DBLKEY;
+			}
 			*wrote = 1;
-			if (beet_node_hidden(node, slot)) unhide(node, slot); // unhide
 			return ad3ata(node, dsize, slot, data, upd, ins);
 		}
 		return BEET_OK;

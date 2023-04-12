@@ -133,9 +133,9 @@ int testWriteOneNode(beet_tree_t *tree, beet_pageid_t *root, ts_algo_map_t *hidd
 				return -1;
 			}
 		}
-		err = beet_tree_insert(tree, root, &z, &z);
+		err = beet_tree_upsert(tree, root, &z, &z);
 		if (err != BEET_OK) {
-			errmsg(err, "cannot insert into tree");
+			errmsg(err, "cannot upsert into tree");
 			return -1;
 		}
 	}

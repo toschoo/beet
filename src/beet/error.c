@@ -66,6 +66,8 @@ const char *beet_errdesc(beet_err_t err) {
 		return "not supported";
 	case BEET_ERR_KEYNOF:
 		return "key not found";
+	case BEET_ERR_DBLKEY:
+		return "duplicate key";
 	case BEET_ERR_EOF:
 		return "end of file";
 	case BEET_ERR_NOSYM:
@@ -86,6 +88,8 @@ const char *beet_errdesc(beet_err_t err) {
 		return "iterator does not match index type";
 	case BEET_ERR_ONEWAY:
 		return "entering or leaving one-level iterator";
+	case BEET_ERR_KEYNOH:
+		return "key not hidden";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:

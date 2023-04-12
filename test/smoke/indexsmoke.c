@@ -75,7 +75,7 @@ int writeRange(beet_index_t idx, ts_algo_map_t *hidden, int lo, int hi) {
 
 	fprintf(stderr, "writing %d to %d\n", lo, hi);
 	for(int i=lo; i<hi; i++) {
-		err = beet_index_insert(idx, &i, &i);
+		err = beet_index_upsert(idx, &i, &i);
 		if (err != BEET_OK) {
 			errmsg(err, "cannot insert");
 			return -1;
@@ -201,6 +201,69 @@ int zerocopyRead(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
 	return 0;
 }
 
+int insAndUpsert(beet_index_t idx, int hi) {
+	beet_err_t err;
+	int k;
+	int d;
+
+	fprintf(stderr, "ins and upserting up to %d\n", hi);
+	for(int i=0; i<10; i++) {
+		k=rand()%hi;
+
+		err = beet_index_copy(idx, &k, &d);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot copy from index");
+			return -1;
+		}
+
+		int d2 = 99;
+
+		// fprintf(stderr, "ins and upserting %d -> %d\n", k, d2);
+		err = beet_index_insert(idx, &k, &d2);
+		if (err != BEET_ERR_DBLKEY) {
+			errmsg(err, "insert known key is not DBLKEY");
+			return -1;
+		}
+
+		// fprintf(stderr, "trying to upsert %d -> %d\n", k, d2);
+		err = beet_index_upsert(idx, &k, &d2);
+		if (err != BEET_OK) {
+			errmsg(err, "upsert with known key");
+			return -1;
+		}
+
+		err = beet_index_copy(idx, &k, &d2);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot copy from index");
+			return -1;
+		}
+
+		if (d2 != 99) {
+			fprintf(stderr, "wrong result %d != 99\n", d2);
+			return -1;
+		}
+
+		// fprintf(stderr, "trying to upsert %d -> %d\n", k, d);
+		err = beet_index_upsert(idx, &k, &d);
+		if (err != BEET_OK) {
+			errmsg(err, "upsert with known key");
+			return -1;
+		}
+
+		err = beet_index_copy(idx, &k, &d2);
+		if (err != BEET_OK) {
+			errmsg(err, "cannot copy from index");
+			return -1;
+		}
+
+		if (d2 != d) {
+			fprintf(stderr, "wrong result %d != %d\n", d2, d);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 #define FAKEDATA (char*)0x1
 int hideAndSeek(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
 	beet_err_t err;
@@ -320,6 +383,10 @@ int main() {
 	}
 	if (zerocopyRead(idx, &hidden, 13) != 0) {
 		fprintf(stderr, "zerocopyRead 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (insAndUpsert(idx, 13) != 0) {
+		fprintf(stderr, "insAndUpsert 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	if (hideAndSeek(idx, &hidden, 13) != 0) {

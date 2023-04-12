@@ -78,9 +78,9 @@ int writeRange(beet_index_t idx, ts_algo_map_t *hidden, int lo, int hi) {
 			if (i>1 && gcd(n,i) != 1) continue;
 			pair.key = &i;
 			pair.data = NULL;
-			err = beet_index_insert(idx, &n, &pair);
+			err = beet_index_upsert(idx, &n, &pair);
 			if (err != BEET_OK) {
-				errmsg(err, "cannot insert");
+				errmsg(err, "cannot upsert");
 				return -1;
 			}
 			uint64_t x = (n << 16) + i;
