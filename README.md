@@ -163,25 +163,15 @@ embed an index into an embedded index.
 The next six attributes describe the sizing of nodes and pages.
 Page is the storage unit of node. For each sizing level
 (page and node) there are two values: for leaf nodes (which contain the data)
-and internal nodes (which contain pointers to other nodes as data).
+and for internal nodes (which contain pointers to other nodes).
 
 The attributes `leafNodeSize` and `intNodeSize` indicate
 the number of key/value pairs stored in one node of the corresponding type.
 
 The attributes `leafPageSize` and `intPageSize` indicate the size
 of pages that store leaf nodes and internal nodes respectively in bytes.
-
-The size of a leaf page must be at least:
-
-`keySize * leafNodeSize + dataSize * leafNodeSize + 12 + leafNodeSize/8 + 1`.
-
-The size of an internal page must be at least:
-
-`keySize * intNodeSize + 4 * intNodeSize + 4 + 4`.
-
-Currently these sizes are not computed internally, but must be given
-in the configuration and *must* be correct. In a future version,
-the page size settings will be ignored and calculated internally.
+These values are computed internally based on node, key and data size.
+Application code does not need to bother with these settings.
 
 The attributes `keySize` and `dataSize` indicate the size of one key
 and one data record respectively.

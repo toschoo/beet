@@ -59,7 +59,7 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_ERR_UNKNVER:
 		return "invalid config file: unknown version";
 	case BEET_ERR_BADCFG:
-		return "bad config file";
+		return "bad config or config file";
 	case BEET_ERR_UNKNTYP:
 		return "unknown index type";
 	case BEET_ERR_NOTSUPP:

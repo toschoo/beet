@@ -124,7 +124,30 @@ void beet_open_config_destroy(beet_open_config_t *cfg) {}
  * Check config
  * ------------------------------------------------------------------------
  */
+#define PTRSZ BEET_NODE_PTRSZ
+#define SIZESZ BEET_NODE_SIZESZ
+#define MAX_PAGE_SIZE 0x40000000
 beet_err_t beet_config_validate(beet_config_t *cfg) {
+	if (cfg == NULL) return BEET_ERR_INVALID;
+
+	// do some validations
+
+	// calculate page size
+	cfg->leafPageSize = cfg->keySize  * cfg->leafNodeSize  +
+	                    cfg->dataSize * cfg->leafNodeSize  +
+	                    SIZESZ + PTRSZ + PTRSZ             + // size + next + prev
+	                    BEET_NODE_CTRLSZ(cfg->leafNodeSize);
+
+	cfg->intPageSize = cfg->keySize * cfg->intNodeSize  +
+	                   PTRSZ * cfg->intNodeSize + PTRSZ + // one more pointer than keys
+                           SIZESZ;                            // size
+
+	if (cfg->leafPageSize > MAX_PAGE_SIZE) return BEET_ERR_BADCFG;
+	if (cfg->intPageSize > MAX_PAGE_SIZE) return BEET_ERR_BADCFG;
+
+	// fprintf(stderr, "Leaf Page Size: %u\n", cfg->leafPageSize);
+	// fprintf(stderr, "Leaf Int  Size: %u\n", cfg->intPageSize);
+
 	return BEET_OK;
 }
 
