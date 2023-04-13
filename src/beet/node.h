@@ -36,6 +36,8 @@ typedef struct {
 } beet_node_t;
 
 #define BEET_NODE_CTRLSZ(x) (x/8+1)
+#define BEET_NODE_PTRSZ 4
+#define BEET_NODE_SIZESZ 4
 
 
 /* ------------------------------------------------------------------------

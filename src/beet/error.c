@@ -59,7 +59,7 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_ERR_UNKNVER:
 		return "invalid config file: unknown version";
 	case BEET_ERR_BADCFG:
-		return "bad config file";
+		return "bad config or config file";
 	case BEET_ERR_UNKNTYP:
 		return "unknown index type";
 	case BEET_ERR_NOTSUPP:
@@ -90,6 +90,20 @@ const char *beet_errdesc(beet_err_t err) {
 		return "iterator does not match index type";
 	case BEET_ERR_ONEWAY:
 		return "entering or leaving one-level iterator";
+	case BEET_ERR_LCACHESZ:
+		return "invalid leaf cache size";
+	case BEET_ERR_ICACHESZ:
+		return "invalid internal cache size";
+	case BEET_ERR_LNOSZ:
+		return "invalid leaf node size";
+	case BEET_ERR_INOSZ:
+		return "invalid internal node size";
+	case BEET_ERR_KEYSZ:
+		return "invalid key size";
+	case BEET_ERR_LPAGESZ:
+		return "invalid leaf page size";
+	case BEET_ERR_IPAGESZ:
+		return "invalid internal page size";
 	case BEET_ERR_TEST:
 		return "this is an injected error!";
 	case BEET_ERR_PANIC:
