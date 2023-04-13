@@ -337,7 +337,7 @@ int main() {
 	config.keySize = 4;
 	config.dataSize = 4;
 	config.subPath = NULL;
-	config.compare = NULL;
+	config.compare = "ignoreme";
 	config.rscinit = NULL;
 	config.rscdest = NULL;
 
