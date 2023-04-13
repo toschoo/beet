@@ -73,7 +73,7 @@ const char *beet_errdesc(beet_err_t err) {
 	case BEET_ERR_EOF:
 		return "end of file";
 	case BEET_ERR_NOSYM:
-		return "symbol not found";
+		return "symbol not found or not given";
 	case BEET_ERR_NOITER:
 		return "iter parameter is NULL";
 	case BEET_ERR_NOSUB:

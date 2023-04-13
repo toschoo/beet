@@ -169,6 +169,8 @@ beet_err_t beet_config_validate(beet_config_t *cfg) {
 	if (validateCacheSize(&cfg->intCacheSize, cfg->intPageSize) != BEET_OK)
 		return BEET_ERR_ICACHESZ;
 
+	if (cfg->compare == NULL) return BEET_ERR_NOSYM;
+
 	// fprintf(stderr, "Leaf Page Size: %u\n", cfg->leafPageSize);
 	// fprintf(stderr, "Leaf Int  Size: %u\n", cfg->intPageSize);
 
@@ -212,11 +214,6 @@ beet_err_t beet_config_getCompare(beet_config_t      *fcfg,
                                   void               *handle,
                                   beet_compare_t     *cmp) {
 
-	/* if this is a host index, we must have a handle and a symbol */
-	if (fcfg->indexType == BEET_INDEX_HOST &&
-	    (fcfg->compare == NULL || handle == NULL)) {
-		return BEET_ERR_INVALID;
-	}
 	if (ocfg->compare != NULL) {
 		*cmp = ocfg->compare;
 		return BEET_OK;

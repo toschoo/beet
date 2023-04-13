@@ -86,7 +86,11 @@ a shared library that contains the code for the comparison functions
 you want to use with your data types. If the comparison functions
 are implemented in your main program or in a library that is loaded anyway,
 the handle may be `NULL`. Otherwise, you need to open that library first
-and pass the handle to the function.
+and pass the handle to the function. Note that, if you open a host index
+that contains an embedded index, the comparison functions for the data types
+in the host index and in the embedded index must be found in that library
+(or in the code of your main program). The names of the functions are
+provided in the `create` configuration (see [config](#Config)).
 
 The `cfg` parameter is a pointer to the `open` configuration which is used
 to provide additional information not stored in the `create` configuration
@@ -176,7 +180,7 @@ Application code does not need to bother with these settings.
 The attributes `keySize` and `dataSize` indicate the size of one key
 and one data record respectively.
 
-The Beet library uses caches to retrieve nodes from disks.
+The Beet library uses caches to retrieve nodes from disk.
 One cache is exclusively used for leaf nodes and one is used only for internal nodes.
 The attributes `leafCacheSize` and `intCacheSize` indicate the size of these caches
 in terms of the number of nodes to be kept in memory.
@@ -250,11 +254,14 @@ If they are set to any value different from `BEET_CACHE_IGNORE`,
 the values in the `create` config are overwritten.
 This is in particular useful for optimising and fine tuning index performance.
 
-The `compare` attribute is a pointer to a `compare` function. If the value is different from NULL it is used instead of the symbol stored in the `create` config.
+The `compare` attribute is a pointer to a `compare` function.
+If the value is different from NULL it is used instead of the symbol stored in the `create` config.
 This is useful for debugging.
+Note, however, that, when you have a host index and an embedded index with different key types,
+this approach won't not work, since we need two different `compare` functions.
 
-The same is true for the next two attributes, `rcsinit` and `rcsdest`
-which overwrite the symbols of the same name in the `create` config.
+The next two attributes, `rcsinit` and `rcsdest`
+overwrite the symbols of the same name in the `create` config.
 
 Finally, \*rsc is an arbitrary object that can be passed in to be used with `compare`.
 
