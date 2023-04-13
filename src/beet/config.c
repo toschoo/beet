@@ -121,6 +121,22 @@ void beet_config_destroy(beet_config_t *cfg) {
 void beet_open_config_destroy(beet_open_config_t *cfg) {}
 
 /* ------------------------------------------------------------------------
+ * Helper: Set and validate cache size
+ * ------------------------------------------------------------------------
+ */
+#define DEFAULT_CACHE_SIZE 0x40000000
+static inline beet_err_t validateCacheSize(int32_t *cacheSize, uint32_t sz) {
+
+	if (*cacheSize == BEET_CACHE_DEFAULT) {
+		*cacheSize = DEFAULT_CACHE_SIZE / sz;
+	}
+
+	if (*cacheSize < 8 && *cacheSize != 0) return BEET_ERR_INVALID;
+
+	return BEET_OK;
+}
+
+/* ------------------------------------------------------------------------
  * Check config
  * ------------------------------------------------------------------------
  */
@@ -130,9 +146,11 @@ void beet_open_config_destroy(beet_open_config_t *cfg) {}
 beet_err_t beet_config_validate(beet_config_t *cfg) {
 	if (cfg == NULL) return BEET_ERR_INVALID;
 
-	// do some validations
+	if (cfg->leafNodeSize < 2) return BEET_ERR_LNOSZ;
+	if (cfg->intNodeSize < 2) return BEET_ERR_INOSZ;
 
-	// calculate page size
+	if (cfg->keySize == 0) return BEET_ERR_KEYSZ;
+
 	cfg->leafPageSize = cfg->keySize  * cfg->leafNodeSize  +
 	                    cfg->dataSize * cfg->leafNodeSize  +
 	                    SIZESZ + PTRSZ + PTRSZ             + // size + next + prev
@@ -142,8 +160,14 @@ beet_err_t beet_config_validate(beet_config_t *cfg) {
 	                   PTRSZ * cfg->intNodeSize + PTRSZ + // one more pointer than keys
                            SIZESZ;                            // size
 
-	if (cfg->leafPageSize > MAX_PAGE_SIZE) return BEET_ERR_BADCFG;
-	if (cfg->intPageSize > MAX_PAGE_SIZE) return BEET_ERR_BADCFG;
+	if (cfg->leafPageSize > MAX_PAGE_SIZE) return BEET_ERR_LPAGESZ;
+	if (cfg->intPageSize > MAX_PAGE_SIZE) return BEET_ERR_IPAGESZ;
+
+	if (validateCacheSize(&cfg->leafCacheSize, cfg->leafPageSize) != BEET_OK)
+		return BEET_ERR_LCACHESZ;
+
+	if (validateCacheSize(&cfg->intCacheSize, cfg->intPageSize) != BEET_OK)
+		return BEET_ERR_ICACHESZ;
 
 	// fprintf(stderr, "Leaf Page Size: %u\n", cfg->leafPageSize);
 	// fprintf(stderr, "Leaf Int  Size: %u\n", cfg->intPageSize);
@@ -159,13 +183,23 @@ beet_err_t beet_config_override(beet_config_t      *fcfg,
                                 beet_open_config_t *ocfg) 
 {
 	if (ocfg == NULL) return BEET_OK;
+	if (fcfg == NULL) return BEET_ERR_INVALID;
 
 	if (ocfg->leafCacheSize != BEET_CACHE_IGNORE) {
+		if (validateCacheSize(&ocfg->leafCacheSize,
+		                       fcfg->leafPageSize) != BEET_OK)
+			return BEET_ERR_LCACHESZ;
+
 		fcfg->leafCacheSize = ocfg->leafCacheSize;
 	}
 	if (ocfg->intCacheSize != BEET_CACHE_IGNORE) {
+		if (validateCacheSize(&ocfg->intCacheSize,
+		                       fcfg->intPageSize) != BEET_OK)
+			return BEET_ERR_ICACHESZ;
+
 		fcfg->intCacheSize = ocfg->intCacheSize;
 	}
+
 	return BEET_OK;
 }
 
