@@ -67,7 +67,7 @@ beet_err_t beet_index_drop(const char *base, const char *path);
 
 Note that the directories in the `path` parameter are removed.
 
-### Open and Closing an Index
+### Opening and Closing an Index
 
 An index, once created, can be opened by means of the open service:
 
@@ -473,10 +473,10 @@ beet_err_t beet_iter_alloc(beet_index_t idx,
 We then perform a range scan:
 
 ```C
-beet_err_t beet_index_range(beet_index_t  idx,
-                            beet_range_t *range,
-                            beet_dir_t    dir,
-                            beet_iter_t   iter);
+beet_err_t beet_index_range(beet_index_t        idx,
+                            const beet_range_t *range,
+                            beet_dir_t          dir,
+                            beet_iter_t         iter);
 ```
 
 The second parameter, `range`, defines the key range in which we search.
@@ -593,11 +593,11 @@ For this we first need to obtain the subindex from a key in the host index.
 This is done by means of the `getIter` service:
 
 ```C
-beet_err_t beet_index_getIter(beet_index_t  idx,
-                              beet_range_t *range,
-                              beet_state_t  state,
-                              const void   *key,
-                              beet_iter_t   iter);
+beet_err_t beet_index_getIter(beet_index_t        idx,
+                              const beet_range_t *range,
+                              beet_state_t        state,
+                              const void         *key,
+                              beet_iter_t         iter);
 ```
 
 The first parameter is the main index.

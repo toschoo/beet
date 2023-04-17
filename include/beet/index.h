@@ -247,11 +247,11 @@ typedef struct {
  * Get iterator into subtree for key
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_getIter(beet_index_t  idx,
-                              beet_range_t *range,
-                              beet_state_t  state,
-                              const void   *key,
-                              beet_iter_t  iter);
+beet_err_t beet_index_getIter(beet_index_t        idx,
+                              const beet_range_t *range,
+                              beet_state_t        state,
+                              const void         *key,
+                              beet_iter_t         iter);
 
 /* ------------------------------------------------------------------------
  * Allocate reusable iter
@@ -264,8 +264,8 @@ beet_err_t beet_iter_alloc(beet_index_t idx,
  * range scan
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_range(beet_index_t  idx,
-                            beet_range_t *range,
-                            beet_dir_t    dir,
-                            beet_iter_t   iter);
+beet_err_t beet_index_range(beet_index_t        idx,
+                            const beet_range_t *range,
+                            beet_dir_t          dir,
+                            beet_iter_t         iter);
 #endif
