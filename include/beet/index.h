@@ -41,8 +41,8 @@ typedef struct beet_index_t *beet_index_t;
  * Create an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_create(char *base,
-                             char *path,
+beet_err_t beet_index_create(const char *base,
+                             const char *path,
                              char standalone,
                              beet_config_t *cfg);
 
@@ -50,13 +50,14 @@ beet_err_t beet_index_create(char *base,
  * Remove an index physically from disk
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_drop(char *base, char *path);
+beet_err_t beet_index_drop(const char *base, const char *path);
 
 /* ------------------------------------------------------------------------
  * Open an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_open(char *base, char   *path,
+beet_err_t beet_index_open(const char       *base,
+                           const char       *path,
                            void             *handle,
                            beet_open_config_t  *cfg,
                            beet_index_t       *idx);
@@ -90,14 +91,16 @@ void *beet_index_getResource(beet_index_t idx);
  * if the key already exists.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data);
+beet_err_t beet_index_insert(beet_index_t idx, const void *key,
+                                               const void *data);
 
 /* ------------------------------------------------------------------------
  * Insert a (key, data) pair into the index updating the data
  * if the key already exists.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
+beet_err_t beet_index_upsert(beet_index_t idx, const void *key,
+                                               const void *data);
 
 /* ------------------------------------------------------------------------
  * Hide a key from the index. The key won't be found any more
