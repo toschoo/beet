@@ -134,6 +134,29 @@ int deepExists(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
 	return 0;
 }
 
+int easyReadDeep(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
+	beet_err_t err;
+	uint64_t k=0;
+	uint64_t d=0;
+
+	for(int i=0; i<25; i++) {
+		do k=rand()%hi; while (k==0);
+
+		for(uint64_t z=1;z<=k; z++) {
+			if (gcd(k,z) != 1) continue;
+			uint64_t x = (k << 16) + z;
+			if (ts_algo_map_getId(hidden, x) != NULL) continue;
+			// fprintf(stderr, "reading %lu/%lu\n", k,z);
+			err = beet_index_copy2(idx, &k, &z, &d);
+			if (err != BEET_OK) {
+				errmsg(err, "cannot read from index");
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
 int readDeep(beet_index_t idx, ts_algo_map_t *hidden, int hi) {
 	beet_state_t state=NULL;
 	beet_err_t err;
@@ -319,6 +342,10 @@ int main() {
 		fprintf(stderr, "deepExists 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (easyReadDeep(idx, &hidden, 13) != 0) {
+		fprintf(stderr, "easyReadDeep 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	if (readDeep(idx, &hidden, 13) != 0) {
 		fprintf(stderr, "readDeep 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
@@ -339,6 +366,10 @@ int main() {
 	}
 	if (deepExists(idx, &hidden, 64) != 0) {
 		fprintf(stderr, "testDoesExist 64 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyReadDeep(idx, &hidden, 64) != 0) {
+		fprintf(stderr, "easyReadDeep 64 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	if (readDeep(idx, &hidden, 64) != 0) {
@@ -372,6 +403,10 @@ int main() {
 		fprintf(stderr, "deepExists 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (easyReadDeep(idx, &hidden, 99) != 0) {
+		fprintf(stderr, "easyReadDeep 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	if (readDeep(idx, &hidden, 99) != 0) {
 		fprintf(stderr, "readDeep 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
@@ -392,6 +427,10 @@ int main() {
 	}
 	if (deepExists(idx, &hidden, 200) != 0) {
 		fprintf(stderr, "testDoesExist 200 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (easyReadDeep(idx, &hidden, 200) != 0) {
+		fprintf(stderr, "easyReadDeep 200 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	if (readDeep(idx, &hidden, 200) != 0) {
