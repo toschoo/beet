@@ -105,7 +105,7 @@ int readhost(beet_index_t   idx,
 	uint64_t k, *z;
 
 	k = rand()%count;
-	err = beet_index_getIter(idx, state, &k, iter);
+	err = beet_index_getIter(idx, NULL, state, &k, iter);
 	if (err == BEET_ERR_KEYNOF) return 0;
 	if (err != BEET_OK) {
 		errmsg(err, "cannot not copy data");

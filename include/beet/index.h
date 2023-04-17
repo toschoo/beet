@@ -232,10 +232,20 @@ beet_err_t beet_index_doesExist2(beet_index_t   idx,
                                  const void   *key2);
 
 /* ------------------------------------------------------------------------
+ * range scan
+ * ------------------------------------------------------------------------
+ */
+typedef struct {
+	void *fromkey;
+	void *tokey;
+} beet_range_t;
+
+/* ------------------------------------------------------------------------
  * Get iterator into subtree for key
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_getIter(beet_index_t  idx,
+                              beet_range_t *range,
                               beet_state_t  state,
                               const void   *key,
                               beet_iter_t  iter);
@@ -246,15 +256,6 @@ beet_err_t beet_index_getIter(beet_index_t  idx,
  */
 beet_err_t beet_iter_alloc(beet_index_t idx,
                            beet_iter_t *iter);
-
-/* ------------------------------------------------------------------------
- * range scan
- * ------------------------------------------------------------------------
- */
-typedef struct {
-	void *fromkey;
-	void *tokey;
-} beet_range_t;
 
 /* ------------------------------------------------------------------------
  * range scan

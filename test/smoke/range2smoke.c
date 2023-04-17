@@ -205,9 +205,12 @@ int getSome(beet_index_t idx, int hi) {
 	}
 	for(int i=0;i<25;i++) {
 		do k=rand()%hi; while(k == 0);
-		err = beet_index_getIter(idx, state, &k, iter);
+		beet_range_t range;
+		range.fromkey = NULL;
+		range.tokey = NULL;
+		err = beet_index_getIter(idx, &range, state, &k, iter);
 		if (err != BEET_OK) {
-			errmsg(err, "could not allocate iter\n");
+			errmsg(err, "could not get iter\n");
 			beet_iter_destroy(iter);
 			beet_state_destroy(state);
 			return -1;
@@ -260,6 +263,91 @@ int getSome(beet_index_t idx, int hi) {
 	return 0;
 }
 
+int subRange(beet_index_t idx, int hi) {
+	beet_err_t err;
+	beet_state_t state;
+	beet_iter_t iter;
+	int k = 0, g, c;
+	int *z;
+
+	err = beet_state_alloc(idx, &state);
+	if (err != BEET_OK) {
+		errmsg(err, "could not allocate state\n");
+		return -1;
+	}
+	err = beet_iter_alloc(idx, &iter);
+	if (err != BEET_OK) {
+		errmsg(err, "could not allocate iter\n");
+		beet_state_destroy(state);
+		return -1;
+	}
+	for(int i=0;i<25;i++) {
+		do k=rand()%hi; while(k == 0);
+		beet_range_t range;
+		int f = 5;
+		int t = hi-5;
+		c=0; g=1;
+
+		range.fromkey = NULL;
+		range.tokey = NULL;
+
+		int x = rand()%3;
+
+		if (x == 0 && k > 5 && k < hi - 5) {
+			fprintf(stderr, "%d) setting range to %d - %d\n", k, f, t);
+			range.fromkey = &f;
+			range.tokey = &t;
+			g=f;
+			while(g<k && gcd(k,g) != 1) g++;
+		}
+		err = beet_index_getIter(idx, &range, state, &k, iter);
+		if (err != BEET_OK) {
+			errmsg(err, "could not get iter\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		while((err = beet_iter_move(iter,
+		                           (void**)&z,
+		                           NULL)) == BEET_OK) {
+			// fprintf(stderr, "[%d] %d: %d\n", k, g, *z);
+			if (*z != g) {
+				fprintf(stderr, 
+				"unexpected: %d for %d (%d)\n", *z, k, g);
+				beet_iter_destroy(iter);
+				beet_state_destroy(state);
+				return -1;
+			}
+			do g++; while(g<k && gcd(k,g) != 1);
+			c++;
+		}
+		if (c > 0 && g != k && k != 1) {
+			fprintf(stderr,
+			"unexpected last value %d / %d\n", g, k);
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_iter_reset(iter);
+		if (err != BEET_OK) {
+			errmsg(err, "could not reset iter\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+		err = beet_state_release(state);
+		if (err != BEET_OK) {
+			errmsg(err, "could not release state\n");
+			beet_iter_destroy(iter);
+			beet_state_destroy(state);
+			return -1;
+		}
+	}
+	beet_state_destroy(state);
+	beet_iter_destroy(iter);
+	return 0;
+}
+
 int invalidEnter(beet_index_t idx, int hi) {
 	beet_err_t err;
 	beet_state_t state;
@@ -280,7 +368,7 @@ int invalidEnter(beet_index_t idx, int hi) {
 	}
 	for(int i=0;i<5;i++) {
 		do k=rand()%hi; while(k == 0);
-		err = beet_index_getIter(idx, state, &k, iter);
+		err = beet_index_getIter(idx, NULL, state, &k, iter);
 		if (err != BEET_OK) {
 			errmsg(err, "could not get iter\n");
 			beet_iter_destroy(iter);
@@ -474,6 +562,10 @@ int main() {
 		fprintf(stderr, "getSome 13 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (subRange(idx, 13) != 0) {
+		fprintf(stderr, "subRange 13 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	/* test with 99 (key,value) pairs */
 	if (writeRange(idx, 13, 99) != 0) {
 		fprintf(stderr, "writeRange 13-99 failed\n");
@@ -489,6 +581,10 @@ int main() {
 	}
 	if (getSome(idx, 99) != 0) {
 		fprintf(stderr, "getSome 99 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (subRange(idx, 99) != 0) {
+		fprintf(stderr, "subRange 99 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	/* test with 150 (key,value) pairs */
@@ -508,6 +604,10 @@ int main() {
 		fprintf(stderr, "getSome 150 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
+	if (subRange(idx, 150) != 0) {
+		fprintf(stderr, "subRange 150 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
 	/* test with 300 (key,value) pairs */
 	if (writeRange(idx, 150, 300) != 0) {
 		fprintf(stderr, "writeRange 150-300 failed\n");
@@ -523,6 +623,10 @@ int main() {
 	}
 	if (getSome(idx, 300) != 0) {
 		fprintf(stderr, "getSome 300 failed\n");
+		rc = EXIT_FAILURE; goto cleanup;
+	}
+	if (subRange(idx, 300) != 0) {
+		fprintf(stderr, "subRange 300 failed\n");
 		rc = EXIT_FAILURE; goto cleanup;
 	}
 	if (invalidEnter(idx, 300) != 0) {

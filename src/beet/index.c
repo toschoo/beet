@@ -949,16 +949,25 @@ beet_err_t beet_index_doesExist2(beet_index_t   idx,
  * ------------------------------------------------------------------------
  */
 beet_err_t beet_index_getIter(beet_index_t  idx,
+                              beet_range_t *range,
                               beet_state_t  state,
                               const void   *key,
                               beet_iter_t  iter) {
-	beet_err_t     err;
+	beet_err_t  err;
+	void *from, *to;
 
 	err = beet_index_get(idx, state, BEET_FLAGS_ROOT, key, NULL);
 	if (err != BEET_OK) return err;
 
+	if (range == NULL) {
+		from = NULL; to = NULL;
+	} else {
+		from = range->fromkey;
+		to   = range->tokey;
+	}
+
 	err = beet_iter_init(iter, idx->subidx->tree,
-	                     state->root, NULL, NULL,
+	                     state->root, from, to,
 	                     BEET_DIR_ASC);
 	if (err != BEET_OK) {
 		staterelease(state);
