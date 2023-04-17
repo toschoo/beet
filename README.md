@@ -596,7 +596,7 @@ beet_err_t beet_index_getIter(beet_index_t  idx,
                               beet_range_t *range,
                               beet_state_t  state,
                               const void   *key,
-                              beet_iter_t  iter);
+                              beet_iter_t   iter);
 ```
 
 The first parameter is the main index.
