@@ -271,8 +271,8 @@ static inline beet_err_t getins(beet_index_t   idx,
  * Create an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_create(char *base,
-                             char *path,
+beet_err_t beet_index_create(const char *base,
+                             const char *path,
                              char  standalone,
                              beet_config_t *cfg) {
 	beet_err_t err;
@@ -339,7 +339,7 @@ beet_err_t beet_index_create(char *base,
 	} \
 	free(ip);
 
-beet_err_t beet_index_drop(char *base, char *path) {
+beet_err_t beet_index_drop(const char *base, const char *path) {
 	struct stat st;
 	char *ip;
 	char *p;
@@ -370,7 +370,8 @@ beet_err_t beet_index_drop(char *base, char *path) {
  * Helper: open an index
  * ------------------------------------------------------------------------
  */
-static beet_err_t openIndex(char *base, char   *path,
+static beet_err_t openIndex(const char       *base,
+                            const char       *path,
                             void             *handle,
                             beet_open_config_t *ocfg,
                             char          standalone,
@@ -545,7 +546,8 @@ static beet_err_t openIndex(char *base, char   *path,
  * Open an index
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_open(char *base,   char *path,
+beet_err_t beet_index_open(const char       *base,
+                           const char       *path,
                            void             *handle,
                            beet_open_config_t *ocfg,
                            beet_index_t        *idx) {
@@ -608,7 +610,8 @@ void *beet_index_getResource(beet_index_t idx) {
  * if the key already exists.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data) {
+beet_err_t beet_index_insert(beet_index_t idx, const void *key,
+                                               const void *data) {
 	IDXNULL();
 	return beet_tree_insert(idx->tree,
 	                       &idx->root, key, data);
@@ -619,7 +622,8 @@ beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data) {
  * if the key already exists.
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data) {
+beet_err_t beet_index_upsert(beet_index_t idx, const void *key,
+                                               const void *data) {
 	IDXNULL();
 	return beet_tree_upsert(idx->tree,
 	                       &idx->root, key, data);
@@ -948,11 +952,11 @@ beet_err_t beet_index_doesExist2(beet_index_t   idx,
  * Get iterator into subtree for key
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_getIter(beet_index_t  idx,
-                              beet_range_t *range,
-                              beet_state_t  state,
-                              const void   *key,
-                              beet_iter_t  iter) {
+beet_err_t beet_index_getIter(beet_index_t        idx,
+                              const beet_range_t *range,
+                              beet_state_t        state,
+                              const void         *key,
+                              beet_iter_t         iter) {
 	beet_err_t  err;
 	void *from, *to;
 
@@ -981,10 +985,10 @@ beet_err_t beet_index_getIter(beet_index_t  idx,
  * range scan
  * ------------------------------------------------------------------------
  */
-beet_err_t beet_index_range(beet_index_t    idx,
-                            beet_range_t *range,
-                            beet_dir_t      dir,
-                            beet_iter_t    iter) {
+beet_err_t beet_index_range(beet_index_t        idx,
+                            const beet_range_t *range,
+                            beet_dir_t          dir,
+                            beet_iter_t         iter) {
 	beet_err_t   err;
 	void *from, *to;
 

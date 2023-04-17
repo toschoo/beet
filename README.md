@@ -27,8 +27,8 @@ the data corresponding to the key can be found.
 Indices are created by means of the create service:
 
 ```C
-    beet_err_t beet_index_create(char *base,           // the base path to the directory where the index is created
-                                 char *path,           // the path to the index relative to the base path
+    beet_err_t beet_index_create(const char *base,     // the base path to the directory where the index is created
+                                 const char *path,     // the path to the index relative to the base path
                                  char standalone,      // embedded are all index types excpet embedded indices
                                  beet_config_t *cfg);  // pointer to the config (see below)
 ```
@@ -62,18 +62,19 @@ Within the `myindex` directory, there will be a directory called `host`.
 To remove an index, use the function
 
 ```C
-beet_err_t beet_index_drop(char *base, char *path);
+beet_err_t beet_index_drop(const char *base, const char *path);
 ```
 
 Note that the directories in the `path` parameter are removed.
 
-### Open and Closing an Index
+### Opening and Closing an Index
 
 An index, once created, can be opened by means of the open service:
 
 ```C
-beet_err_t beet_index_open(char *base, char   *path, // base and path components
-                           void             *handle, // comparison library handle
+beet_err_t beet_index_open(const char *base,
+                           const char *path,   // base and path components
+                           void       *handle, // comparison library handle
                            beet_open_config_t  *cfg, // opening config
                            beet_index_t       *idx); // pointer to the index object
 ```
@@ -277,7 +278,7 @@ void beet_open_config_ignore(beet_open_config_t *cfg);
 Key/value pairs are inserted with the `insert` service:
 
 ```C
-beet_err_t beet_index_insert(beet_index_t idx, void *key, void *data);
+beet_err_t beet_index_insert(beet_index_t idx, const void *key, const void *data);
 ```
 
 The function receives the index into which to insert the pair, a pointer to the key
@@ -287,7 +288,7 @@ If the key already exists, the function returns the error `BEET_ERR_DBLKEY`.
 An alternative to `insert` is the `upsert` service:
 
 ```C
-beet_err_t beet_index_upsert(beet_index_t idx, void *key, void *data);
+beet_err_t beet_index_upsert(beet_index_t idx, const void *key, const void *data);
 ```
 
 The `upsert` service works exactly like `insert`, with the exception that it does not return an error
@@ -472,10 +473,10 @@ beet_err_t beet_iter_alloc(beet_index_t idx,
 We then perform a range scan:
 
 ```C
-beet_err_t beet_index_range(beet_index_t  idx,
-                            beet_range_t *range,
-                            beet_dir_t    dir,
-                            beet_iter_t   iter);
+beet_err_t beet_index_range(beet_index_t        idx,
+                            const beet_range_t *range,
+                            beet_dir_t          dir,
+                            beet_iter_t         iter);
 ```
 
 The second parameter, `range`, defines the key range in which we search.
@@ -592,11 +593,11 @@ For this we first need to obtain the subindex from a key in the host index.
 This is done by means of the `getIter` service:
 
 ```C
-beet_err_t beet_index_getIter(beet_index_t  idx,
-                              beet_range_t *range,
-                              beet_state_t  state,
-                              const void   *key,
-                              beet_iter_t  iter);
+beet_err_t beet_index_getIter(beet_index_t        idx,
+                              const beet_range_t *range,
+                              beet_state_t        state,
+                              const void         *key,
+                              beet_iter_t         iter);
 ```
 
 The first parameter is the main index.
