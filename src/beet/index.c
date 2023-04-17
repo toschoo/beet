@@ -71,6 +71,13 @@ struct beet_state_t {
 	if (idx == NULL) return BEET_ERR_NOIDX;
 
 /* ------------------------------------------------------------------------
+ * Macro: subtree not NULL
+ * ------------------------------------------------------------------------
+ */
+#define SUBNULL() \
+	if (idx->subidx == NULL) return BEET_ERR_NOSUB;
+
+/* ------------------------------------------------------------------------
  * Macro: state not NULL
  * ------------------------------------------------------------------------
  */
@@ -788,6 +795,31 @@ beet_err_t beet_index_copy(beet_index_t idx, const void *key, void *data) {
 }
 
 /* ------------------------------------------------------------------------
+ * Get data by key from subtree (simple)
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_copy2(beet_index_t idx, const void *key1,
+                                              const void *key2,
+                                                    void *data) {
+	struct beet_state_t state;
+	beet_err_t err;
+	void *tmp;
+
+	CLEANSTATE(&state);
+
+	err = beet_index_get2(idx, &state, 0, key1, key2, &tmp);
+	if (err != BEET_OK) return err;
+
+	memcpy(data, tmp, idx->subidx->tree->dsize); // idx and subidx checked in get2
+
+	err = staterelease(&state);
+	if (err != BEET_OK) return err;
+
+	return BEET_OK;
+}
+
+
+/* ------------------------------------------------------------------------
  * Allocate new state
  * ------------------------------------------------------------------------
  */
@@ -932,7 +964,7 @@ beet_err_t beet_index_getIter(beet_index_t  idx,
 		staterelease(state);
 		return err;
 	}
-	iter->use = 0; /* second level may not be used */
+	iter->use = 0; /* second level must not be used */
 	return BEET_OK;
 }
 

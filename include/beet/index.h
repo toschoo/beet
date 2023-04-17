@@ -150,6 +150,14 @@ beet_err_t beet_index_height(beet_index_t idx, uint32_t *h);
 beet_err_t beet_index_copy(beet_index_t idx, const void *key, void *data);
 
 /* ------------------------------------------------------------------------
+ * Get data by key from subtree (simple)
+ * ------------------------------------------------------------------------
+ */
+beet_err_t beet_index_copy2(beet_index_t idx, const void *key1,
+                                              const void *key2,
+                                                    void *data);
+
+/* ------------------------------------------------------------------------
  * State
  * ------------------------------------------------------------------------
  */
