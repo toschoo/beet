@@ -587,6 +587,70 @@ if (err != BEET_ERR_EOF) {
 }
 ```
 
+It is also possible to range through the keys of a subindex.
+For this we first need to obtain the subindex from a key in the host index.
+This is done by means of the `getIter` service:
+
+```C
+beet_err_t beet_index_getIter(beet_index_t  idx,
+                              beet_range_t *range,
+                              beet_state_t  state,
+                              const void   *key,
+                              beet_iter_t  iter);
+```
+
+The first parameter is the main index.
+The second parameter is a range. If the range is `NULL`,
+we will iterate through all keys in the subindex.
+The third parameter is a state just as in the `get` services.
+The `key` parameter refers to the key in the host index and
+`iter` is an already allocated iterator.
+Here is an example:
+
+```C
+beet_state_t state;
+beet_iter_t  iter;
+beet_range_t range;
+uint64_t k, f, t;
+uint64_t *z, *r;
+
+err = beet_state_alloc(idx, &state);
+if (err != BEET_OK) {
+    fprintf(stderr, "could not allocate state: %s\n", beet_err_desc(err));
+    return EXIT_FAILURE;
+}
+err = beet_iter_alloc(idx, &iter);
+if (err != BEET_OK) {
+    fprintf(stderr, "could not allocate iter: %s\n", beet_err_desc(err));
+    beet_state_destroy(state);
+    return EXIT_FAILURE;
+}
+
+k=12; f=6; t=9;
+range.fromkey = &f;
+range.tokey = &t;
+err = beet_index_getIter(idx, &range, state, &k, iter);
+if (err != BEET_OK) {
+    fprintf(stderr, "could not obtain iter: %s\n", beet_err_desc(err));
+    beet_iter_destroy(iter);
+    beet_state_destroy(state);
+    return EXIT_FAILURE;
+}
+
+fprintf(stdout, "The remainders of %ul, > %ul, < %ul are:\n", k, f-1, t+1);
+while((err = beet_iter_move(iter, (void**)&z, (void**)&r)) == BEET_OK) {
+    fprintf(stdout, "%ul -> %ul\n", *z, *r);
+}
+if (err != BEET_ERR_EOF) {
+    fprintf(stderr, "cannot move through key %lu: %s\n", k, beet_errdesc(err));
+    beet_iter_destroy(iter);
+    beet_state_destroy(state);
+    return EXIT_FAILURE;
+}
+beet_iter_destroy(iter); // free memory
+beet_state_destroy(state); // free memory
+```
+
 ### Deleting and Hiding
 
 The `delete` service deletes a key and its data from the index:
